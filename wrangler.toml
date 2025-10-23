@@ -1,0 +1,10 @@
+name = "deeds-app"
+main = "functions/_worker.js"
+compatibility_date = "2025-10-23"
+
+[site]
+bucket = "./public"
+
+[[kv_namespaces]]
+binding = "DEEDS_KV"
+id = "your-kv-id-here"
