@@ -18,7 +18,7 @@
       </button>
     </form>
 
-    <p id="message" class="text-center mt-4 text-gray-600 text-sm"></p>
+    <p id="message" class="text-center mt-4 text-sm"></p>
   </div>
 
   <script>
@@ -26,15 +26,42 @@
       e.preventDefault();
       const email = document.getElementById("email").value;
       const password = document.getElementById("password").value;
+      const messageElement = document.getElementById("message");
+      const submitButton = e.target.querySelector("button[type='submit']");
 
-      const response = await fetch("/api/auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password })
-      });
+      messageElement.textContent = "Processing…";
+      messageElement.className = "text-center mt-4 text-blue-600 text-sm";
+      submitButton.disabled = true;
+      submitButton.classList.add("opacity-60", "cursor-not-allowed");
 
-      const result = await response.json();
-      document.getElementById("message").textContent = result.message || "Success!";
+      try {
+        const response = await fetch("/api/auth", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.message || "Request failed");
+        }
+
+        const createdDate = result?.profile?.created
+          ? new Date(result.profile.created).toLocaleString()
+          : null;
+
+        messageElement.textContent = createdDate
+          ? `${result.message} (Created: ${createdDate})`
+          : result.message || "Success!";
+        messageElement.className = "text-center mt-4 text-green-600 text-sm";
+      } catch (error) {
+        messageElement.textContent = error.message || "An unexpected error occurred.";
+        messageElement.className = "text-center mt-4 text-red-600 text-sm";
+      } finally {
+        submitButton.disabled = false;
+        submitButton.classList.remove("opacity-60", "cursor-not-allowed");
+      }
     });
   </script>
 </body>
