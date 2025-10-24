@@ -7,4 +7,7 @@ bucket = "./public"
 
 [[kv_namespaces]]
 binding = "DEEDS_KV"
-id = "your-kv-id-here"
+
+
+id = "f55e73c8a0814bc9b3eea9176548e1f5"
+
