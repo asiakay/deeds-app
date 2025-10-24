@@ -4,11 +4,7 @@ compatibility_date = "2025-10-23"
 
 [site]
 bucket = "./public"
-binding = "ASSETS"
 
 [[kv_namespaces]]
 binding = "DEEDS_KV"
-
-
 id = "f55e73c8a0814bc9b3eea9176548e1f5"
-
