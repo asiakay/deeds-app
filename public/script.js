@@ -144,6 +144,17 @@ function attachAuthForms() {
   });
 }
 
+function getInitials(name = "") {
+  if (!name) return "D";
+  const parts = String(name).trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "D";
+  if (parts.length === 1) return parts[0].slice(0, 1).toUpperCase();
+  return (
+    parts[0].slice(0, 1).toUpperCase() +
+    parts[parts.length - 1].slice(0, 1).toUpperCase()
+  );
+}
+
 function hydrateDashboard() {
   const profile = loadProfile();
   const nameTarget = document.querySelector('[data-profile-field="name"]');
@@ -153,6 +164,9 @@ function hydrateDashboard() {
   );
   const completedTarget = document.querySelector(
     '[data-profile-field="completed"]',
+  );
+  const initialsTarget = document.querySelector(
+    '[data-profile-field="initials"]',
   );
 
   if (!nameTarget && !emailTarget && !createdTarget) {
@@ -179,6 +193,9 @@ function hydrateDashboard() {
   }
   if (completedTarget && profile.completed != null) {
     completedTarget.textContent = profile.completed;
+  }
+  if (initialsTarget) {
+    initialsTarget.textContent = getInitials(profile.name || profile.email);
   }
 }
 
