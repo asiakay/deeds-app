@@ -188,6 +188,58 @@ async function handleLogin(request, env) {
   }
 }
 
+async function handleCreateDeed(request, env) {
+  if (!env.DEEDS_DB) {
+    return responseWithMessage(
+      "Database binding missing. Configure DEEDS_DB.",
+      500,
+    );
+  }
+
+  const payload = await parseJsonBody(request);
+  if (!payload) {
+    return responseWithMessage("Invalid JSON payload.", 400);
+  }
+
+  const userId = Number(payload.user_id);
+  const title = String(payload.deed_title || "").trim();
+  const proofUrl = String(payload.proof_url || "").trim();
+
+  if (!Number.isInteger(userId) || userId <= 0) {
+    return responseWithMessage("A valid user_id must be provided.", 400);
+  }
+
+  if (!title) {
+    return responseWithMessage("deed_title is required.", 400);
+  }
+
+  if (!proofUrl) {
+    return responseWithMessage("proof_url is required.", 400);
+  }
+
+  const timestamp = new Date().toISOString();
+  const status = "pending";
+
+  try {
+    const result = await env.DEEDS_DB.prepare(
+      "INSERT INTO deeds (user_id, title, proof_url, status, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+    )
+      .bind(userId, title, proofUrl, status, timestamp)
+      .run();
+
+    return Response.json(
+      { success: true, deed_id: result.meta.last_row_id },
+      { status: 201 },
+    );
+  } catch (error) {
+    console.error("Failed to create deed", error);
+    return responseWithMessage(
+      "We could not save your deed. Please try again later.",
+      500,
+    );
+  }
+}
+
 const DEFAULT_HTML = `<!doctype html>
 <html lang="en">
   <head>
@@ -290,6 +342,12 @@ export default {
 
     if (url.pathname === "/api/auth/login" && request.method === "POST") {
       const response = await handleLogin(request, env);
+      response.headers.set("Access-Control-Allow-Origin", "*");
+      return response;
+    }
+
+    if (url.pathname === "/api/deeds" && request.method === "POST") {
+      const response = await handleCreateDeed(request, env);
       response.headers.set("Access-Control-Allow-Origin", "*");
       return response;
     }
