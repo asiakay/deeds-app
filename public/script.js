@@ -1,13 +1,9 @@
 const STORAGE_KEY = "deeds.profile";
 
-
-
 function togglePw() {
-  const pw = document.getElementById('pw');
-  pw.type = pw.type === 'password' ? 'text' : 'password';
+  const pw = document.getElementById("pw");
+  pw.type = pw.type === "password" ? "text" : "password";
 }
-
-
 
 const toneClassMap = {
   success: "text-teal-700",
