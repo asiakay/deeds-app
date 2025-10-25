@@ -6,6 +6,24 @@ async function parseJsonBody(request) {
   }
 }
 
+const STATIC_PAGE_ROUTES = new Map([
+  ["/choose", "/choose.html"],
+  ["/leaderboard", "/leaderboard.html"],
+  ["/profile", "/profile.html"],
+  ["/submit", "/submit.html"],
+  ["/verify", "/verify.html"],
+]);
+
+function normalizePathname(pathname) {
+  if (!pathname) {
+    return "/";
+  }
+  if (pathname === "/") {
+    return pathname;
+  }
+  return pathname.replace(/\/+$/, "");
+}
+
 async function hashPassword(password) {
   const data = new TextEncoder().encode(password);
   const digest = await crypto.subtle.digest("SHA-256", data);
@@ -277,7 +295,21 @@ export default {
     }
 
     if (env.ASSETS) {
-      let assetResponse = await env.ASSETS.fetch(request);
+      let assetRequest = request;
+
+      if (request.method === "GET") {
+        const normalizedPath = normalizePathname(url.pathname);
+        const assetPath = STATIC_PAGE_ROUTES.get(normalizedPath);
+        if (assetPath) {
+          const assetUrl = new URL(assetPath, url.origin);
+          assetRequest = new Request(assetUrl.toString(), {
+            method: "GET",
+            headers: new Headers(request.headers),
+          });
+        }
+      }
+
+      let assetResponse = await env.ASSETS.fetch(assetRequest);
 
       if (assetResponse.status === 404 && request.method === "GET") {
         const indexUrl = new URL("/index.html", url.origin);
