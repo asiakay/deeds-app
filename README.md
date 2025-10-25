@@ -14,9 +14,14 @@ The Deeds prototype demonstrates how a lightweight volunteering experience can r
 ├── functions/_worker.js      # Cloudflare Worker with auth + profile routes
 ├── migrations/               # D1 schema migrations
 ├── public/                   # Static frontend assets served by Workers Sites
+│   ├── choose.html          # Curated opportunities list
 │   ├── dashboard.html        # Post-login experience
 │   ├── index.html            # Sign-up screen
+│   ├── leaderboard.html      # Community leaderboard
 │   ├── login.html            # Log-in screen
+│   ├── profile.html          # Member profile
+│   ├── submit.html           # Deed submission form
+│   ├── verify.html           # Placeholder verification screen
 │   ├── script.js             # Client-side auth + profile hydration
 │   └── styles.css            # Shared base styles
 ├── package.json              # Tooling + scripts
