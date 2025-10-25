@@ -64,6 +64,10 @@ export default {
       });
     }
 
-    return env.ASSETS.fetch(request);
+    if (env.ASSETS && typeof env.ASSETS.fetch === "function") {
+      return env.ASSETS.fetch(request);
+    }
+
+    return new Response("Static asset binding not configured", { status: 500 });
   },
 };
