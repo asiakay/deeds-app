@@ -6,6 +6,24 @@ async function parseJsonBody(request) {
   }
 }
 
+const STATIC_PAGE_ROUTES = new Map([
+  ["/choose", "/choose.html"],
+  ["/leaderboard", "/leaderboard.html"],
+  ["/profile", "/profile.html"],
+  ["/submit", "/submit.html"],
+  ["/verify", "/verify.html"],
+]);
+
+function normalizePathname(pathname) {
+  if (!pathname) {
+    return "/";
+  }
+  if (pathname === "/") {
+    return pathname;
+  }
+  return pathname.replace(/\/+$/, "");
+}
+
 async function hashPassword(password) {
   const data = new TextEncoder().encode(password);
   const digest = await crypto.subtle.digest("SHA-256", data);
@@ -170,6 +188,58 @@ async function handleLogin(request, env) {
   }
 }
 
+async function handleCreateDeed(request, env) {
+  if (!env.DEEDS_DB) {
+    return responseWithMessage(
+      "Database binding missing. Configure DEEDS_DB.",
+      500,
+    );
+  }
+
+  const payload = await parseJsonBody(request);
+  if (!payload) {
+    return responseWithMessage("Invalid JSON payload.", 400);
+  }
+
+  const userId = Number(payload.user_id);
+  const title = String(payload.deed_title || "").trim();
+  const proofUrl = String(payload.proof_url || "").trim();
+
+  if (!Number.isInteger(userId) || userId <= 0) {
+    return responseWithMessage("A valid user_id must be provided.", 400);
+  }
+
+  if (!title) {
+    return responseWithMessage("deed_title is required.", 400);
+  }
+
+  if (!proofUrl) {
+    return responseWithMessage("proof_url is required.", 400);
+  }
+
+  const timestamp = new Date().toISOString();
+  const status = "pending";
+
+  try {
+    const result = await env.DEEDS_DB.prepare(
+      "INSERT INTO deeds (user_id, title, proof_url, status, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+    )
+      .bind(userId, title, proofUrl, status, timestamp)
+      .run();
+
+    return Response.json(
+      { success: true, deed_id: result.meta.last_row_id },
+      { status: 201 },
+    );
+  } catch (error) {
+    console.error("Failed to create deed", error);
+    return responseWithMessage(
+      "We could not save your deed. Please try again later.",
+      500,
+    );
+  }
+}
+
 const DEFAULT_HTML = `<!doctype html>
 <html lang="en">
   <head>
@@ -276,8 +346,28 @@ export default {
       return response;
     }
 
+    if (url.pathname === "/api/deeds" && request.method === "POST") {
+      const response = await handleCreateDeed(request, env);
+      response.headers.set("Access-Control-Allow-Origin", "*");
+      return response;
+    }
+
     if (env.ASSETS) {
-      let assetResponse = await env.ASSETS.fetch(request);
+      let assetRequest = request;
+
+      if (request.method === "GET") {
+        const normalizedPath = normalizePathname(url.pathname);
+        const assetPath = STATIC_PAGE_ROUTES.get(normalizedPath);
+        if (assetPath) {
+          const assetUrl = new URL(assetPath, url.origin);
+          assetRequest = new Request(assetUrl.toString(), {
+            method: "GET",
+            headers: new Headers(request.headers),
+          });
+        }
+      }
+
+      let assetResponse = await env.ASSETS.fetch(assetRequest);
 
       if (assetResponse.status === 404 && request.method === "GET") {
         const indexUrl = new URL("/index.html", url.origin);
