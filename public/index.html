@@ -196,6 +196,16 @@
       color: #64748b;
     }
 
+    .signup__disclaimer[data-state="success"] {
+      color: #047857;
+      font-weight: 600;
+    }
+
+    .signup__disclaimer[data-state="error"] {
+      color: #dc2626;
+      font-weight: 600;
+    }
+
     footer {
       padding: 2rem 1.5rem 3rem;
       text-align: center;
@@ -236,11 +246,31 @@
           <h2 id="signup-heading" class="signup__heading">Stay rooted in the energy transition</h2>
           <p class="signup__copy">Leave your email and we&apos;ll send the latest on project launches, volunteer opportunities, and ways to invest in Solar Roots&apos; community-owned solar farms.</p>
         </div>
-        <form class="signup__form">
+        <form class="signup__form" id="signup-form" novalidate>
           <label class="sr-only" for="email-input">Email address</label>
-          <input class="signup__input" id="email-input" type="email" name="email" placeholder="you@example.com" required />
-          <button class="signup__button" type="submit">Notify Me</button>
+          <input
+            class="signup__input"
+            id="email-input"
+            type="email"
+            name="email"
+            placeholder="you@example.com"
+            autocomplete="email"
+            required
+          />
+          <label class="sr-only" for="password-input">Password</label>
+          <input
+            class="signup__input"
+            id="password-input"
+            type="password"
+            name="password"
+            placeholder="Create a password"
+            autocomplete="current-password"
+            minlength="6"
+            required
+          />
+          <button class="signup__button" id="signup-submit" type="submit">Save &amp; Sign In</button>
         </form>
+        <p class="signup__disclaimer" id="signup-message" role="status" aria-live="polite"></p>
         <p class="signup__disclaimer">We send purposeful updates—no spam, no sharing. Opt out anytime.</p>
       </section>
     </main>
@@ -253,6 +283,70 @@
     const yearEl = document.getElementById('year');
     if (yearEl) {
       yearEl.textContent = new Date().getFullYear();
+    }
+
+    const signupForm = document.getElementById('signup-form');
+    const signupMessage = document.getElementById('signup-message');
+    const signupButton = document.getElementById('signup-submit');
+
+    const showMessage = (message, type = 'info') => {
+      if (!signupMessage) return;
+      signupMessage.textContent = message;
+      signupMessage.dataset.state = type;
+    };
+
+    const setButtonState = (isLoading) => {
+      if (!signupButton) return;
+      signupButton.disabled = isLoading;
+      signupButton.textContent = isLoading ? 'Working...' : 'Save & Sign In';
+    };
+
+    if (signupForm) {
+      signupForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        const formData = new FormData(signupForm);
+        const email = String(formData.get('email') || '').trim();
+        const password = String(formData.get('password') || '');
+
+        if (!email || !password) {
+          showMessage('Please provide both an email and password to continue.', 'error');
+          return;
+        }
+
+        if (password.length < 6) {
+          showMessage('Passwords need to be at least 6 characters long.', 'error');
+          return;
+        }
+
+        try {
+          setButtonState(true);
+          showMessage('Saving your profile…', 'info');
+
+          const response = await fetch('/api/auth', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email, password }),
+          });
+
+          const result = await response.json().catch(() => null);
+
+          if (!response.ok) {
+            const message = (result && result.message) || 'Something went wrong. Please try again.';
+            showMessage(message, 'error');
+            return;
+          }
+
+          showMessage(result?.message || 'Profile saved! Welcome aboard.', 'success');
+          signupForm.reset();
+        } catch (error) {
+          showMessage('Unable to reach the server. Please try again shortly.', 'error');
+        } finally {
+          setButtonState(false);
+        }
+      });
     }
   </script>
 </body>
