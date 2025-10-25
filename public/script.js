@@ -1,42 +1,8 @@
-const STORAGE_KEY = "deeds.profile";
-
 const toneClassMap = {
   success: "text-teal-700",
   error: "text-rose-600",
   info: "text-slate-600",
 };
-
-function saveProfile(profile) {
-  if (!profile) return;
-  const enriched = {
-    ...profile,
-    completed: profile.completed ?? 3,
-  };
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(enriched));
-  } catch (error) {
-    console.warn("Unable to cache profile locally", error);
-  }
-}
-
-function loadProfile() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch (error) {
-    console.warn("Unable to read cached profile", error);
-    return null;
-  }
-}
-
-function clearProfile() {
-  try {
-    localStorage.removeItem(STORAGE_KEY);
-  } catch (error) {
-    console.warn("Unable to clear cached profile", error);
-  }
-}
 
 function formatDate(value) {
   if (!value) return "—";
@@ -55,6 +21,43 @@ function setMessage(element, message, tone = "info") {
   element.classList.remove(...Object.values(toneClassMap));
   if (toneClassMap[tone]) {
     element.classList.add(toneClassMap[tone]);
+  }
+}
+
+let profileCache = null;
+
+async function fetchProfile(options = { force: false }) {
+  if (!options.force && profileCache) {
+    return profileCache;
+  }
+
+  try {
+    const response = await fetch("/api/profile", {
+      credentials: "include",
+      headers: {
+        Accept: "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      profileCache = null;
+      return null;
+    }
+
+    const result = await response.json().catch(() => null);
+    if (result?.profile) {
+      const completed =
+        result.profile.completed != null ? result.profile.completed : 0;
+      profileCache = { ...result.profile, completed };
+      return profileCache;
+    }
+
+    profileCache = null;
+    return null;
+  } catch (error) {
+    console.warn("Unable to fetch profile", error);
+    profileCache = null;
+    return null;
   }
 }
 
@@ -108,6 +111,7 @@ function attachAuthForms() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify(payload),
+          credentials: "include",
         });
 
         const result = await response.json().catch(() => null);
@@ -120,7 +124,11 @@ function attachAuthForms() {
         }
 
         if (result?.profile) {
-          saveProfile(result.profile);
+          const completed =
+            result.profile.completed != null ? result.profile.completed : 0;
+          profileCache = { ...result.profile, completed };
+        } else {
+          profileCache = null;
         }
 
         setMessage(messageElement, result?.message || "Success!", "success");
@@ -155,8 +163,7 @@ function getInitials(name = "") {
   );
 }
 
-function hydrateDashboard() {
-  const profile = loadProfile();
+async function hydrateDashboard() {
   const nameTarget = document.querySelector('[data-profile-field="name"]');
   const emailTarget = document.querySelector('[data-profile-field="email"]');
   const createdTarget = document.querySelector(
@@ -173,6 +180,7 @@ function hydrateDashboard() {
     return;
   }
 
+  const profile = await fetchProfile();
   if (!profile) {
     window.setTimeout(() => {
       window.location.href = "login.html";
@@ -201,8 +209,16 @@ function hydrateDashboard() {
 
 function attachLogout() {
   document.querySelectorAll('[data-action="logout"]').forEach((button) => {
-    button.addEventListener("click", () => {
-      clearProfile();
+    button.addEventListener("click", async () => {
+      profileCache = null;
+      try {
+        await fetch("/api/auth/logout", {
+          method: "POST",
+          credentials: "include",
+        });
+      } catch (error) {
+        console.warn("Unable to notify server about logout", error);
+      }
       window.location.href = "login.html";
     });
   });
@@ -210,6 +226,8 @@ function attachLogout() {
 
 window.addEventListener("DOMContentLoaded", () => {
   attachAuthForms();
-  hydrateDashboard();
+  hydrateDashboard().catch((error) => {
+    console.error("Unable to hydrate dashboard", error);
+  });
   attachLogout();
 });
