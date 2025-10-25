@@ -4,6 +4,7 @@ const toneClassMap = {
   success: "text-teal-700",
   error: "text-rose-600",
   info: "text-slate-600",
+  accent: "text-teal-200",
 };
 
 function saveProfile(profile) {
@@ -144,6 +145,93 @@ function attachAuthForms() {
   });
 }
 
+function attachWaitlistForms() {
+  document.querySelectorAll('[data-role="waitlist-form"]').forEach((form) => {
+    const messageElement = form.querySelector('[data-role="form-message"]');
+    const submitButton = form.querySelector('button[type="submit"]');
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const formData = new FormData(form);
+      const email = String(formData.get("email") || "").trim();
+      const name = String(formData.get("name") || "").trim();
+
+      if (!email) {
+        setMessage(
+          messageElement,
+          "Please add your email so we know where to reach you.",
+          "accent",
+        );
+        return;
+      }
+
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailPattern.test(email)) {
+        setMessage(
+          messageElement,
+          "That email doesn't look quite right. Try again?",
+          "accent",
+        );
+        return;
+      }
+
+      if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.dataset.loading = "true";
+      }
+      setMessage(messageElement, "Adding you to the waitlist…", "accent");
+
+      try {
+        const response = await fetch("/api/waitlist", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email, name }),
+        });
+
+        const result = await response.json().catch(() => null);
+
+        if (!response.ok) {
+          const fallback =
+            result?.message ||
+            "We had trouble saving that. Please try again in a moment.";
+          setMessage(messageElement, fallback, "error");
+          return;
+        }
+
+        setMessage(
+          messageElement,
+          result?.message ||
+            "You're all set! We'll be in touch with updates soon.",
+          "success",
+        );
+        form.reset();
+      } catch (error) {
+        console.error("Waitlist request failed", error);
+        setMessage(
+          messageElement,
+          "We couldn't connect to the server. Please try again shortly.",
+          "error",
+        );
+      } finally {
+        if (submitButton) {
+          submitButton.disabled = false;
+          delete submitButton.dataset.loading;
+        }
+      }
+    });
+  });
+}
+
+function updateDynamicYear() {
+  const yearElement = document.querySelector('[data-role="year"]');
+  if (yearElement) {
+    yearElement.textContent = new Date().getFullYear();
+  }
+}
+
 function hydrateDashboard() {
   const profile = loadProfile();
   const nameTarget = document.querySelector('[data-profile-field="name"]');
@@ -193,6 +281,8 @@ function attachLogout() {
 
 window.addEventListener("DOMContentLoaded", () => {
   attachAuthForms();
+  attachWaitlistForms();
   hydrateDashboard();
   attachLogout();
+  updateDynamicYear();
 });
