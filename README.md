@@ -164,6 +164,7 @@ npm run start   # wrangler dev
 npm run deploy  # wrangler deploy
 npm run lint    # prettier --check for frontend + worker sources
 npm run format  # prettier --write for frontend + worker sources
+npm run show:deployment # print the current deployment configuration from wrangler.toml
 ```
 
 ## Authentication flow
