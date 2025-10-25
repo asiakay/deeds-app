@@ -1,1 +1,253 @@
-<!DOCTYPE html><html><body><p>Submit deed screen placeholder.</p></body></html>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Deeds | Submit a deed</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.2/dist/tailwind.min.css"
+      integrity="sha384-4VhpjS/4jGouVp21Hb+Jseb3CidRubc4QpfAlWTMwVzKhI6+w4n1vCtbmZh9rqxW"
+      crossorigin="anonymous"
+    />
+    <link rel="stylesheet" href="public/styles.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-900">
+    <div
+      class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50"
+    >
+      <header class="border-b border-slate-200 bg-white/90 backdrop-blur">
+        <div
+          class="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-6 py-5"
+        >
+          <a
+            href="public/dashboard.html"
+            class="flex items-center gap-2 text-lg font-semibold text-slate-900"
+          >
+            <span
+              class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-teal-600 text-white"
+              >D</span
+            >
+            Deeds
+          </a>
+          <nav class="flex flex-wrap items-center gap-4 text-sm text-slate-600">
+            <a href="public/dashboard.html" class="hover:text-teal-700"
+              >Dashboard</a
+            >
+            <a href="choose.html" class="hover:text-teal-700">Choose deed</a>
+            <a
+              href="submit.html"
+              class="font-semibold text-teal-700 hover:text-teal-700"
+              aria-current="page"
+              >Submit deed</a
+            >
+            <a href="leaderboard.html" class="hover:text-teal-700"
+              >Leaderboard</a
+            >
+            <a href="profile.html" class="hover:text-teal-700">Profile</a>
+          </nav>
+          <button
+            type="button"
+            class="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-teal-600 hover:text-teal-700"
+            data-action="logout"
+          >
+            Log out
+          </button>
+        </div>
+      </header>
+
+      <main class="mx-auto flex max-w-5xl flex-col gap-10 px-6 py-12">
+        <section class="rounded-2xl bg-white p-8 shadow-md shadow-teal-900/5">
+          <div class="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p
+                class="text-sm font-medium uppercase tracking-[0.18em] text-teal-600"
+              >
+                Celebrate your impact
+              </p>
+              <h1 class="mt-2 text-3xl font-semibold tracking-tight">
+                Submit a deed to keep your streak going
+              </h1>
+              <p class="mt-3 max-w-2xl text-base text-slate-600">
+                Share what you completed, who benefited, and any partners who
+                joined you. Your story appears in the community feed once
+                approved.
+              </p>
+            </div>
+            <div
+              class="rounded-xl border border-slate-100 bg-slate-50 p-4 text-sm"
+            >
+              <p class="text-slate-500">Need inspiration?</p>
+              <a
+                href="choose.html"
+                class="mt-1 inline-flex items-center justify-center rounded-lg bg-white px-3 py-1.5 font-semibold text-teal-700 shadow-sm hover:bg-teal-50"
+              >
+                Browse deeds
+              </a>
+            </div>
+          </div>
+        </section>
+
+        <section class="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+          <form
+            class="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm"
+          >
+            <fieldset class="grid gap-6">
+              <legend class="sr-only">Deed details</legend>
+              <div class="grid gap-2">
+                <label
+                  class="text-sm font-medium text-slate-700"
+                  for="deed-title"
+                  >Title</label
+                >
+                <input
+                  id="deed-title"
+                  type="text"
+                  name="title"
+                  placeholder="Delivered groceries to Mrs. Ortiz"
+                  class="rounded-lg border border-slate-200 px-3 py-2 text-base shadow-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
+                  required
+                />
+              </div>
+              <div class="grid gap-2 sm:grid-cols-2">
+                <div class="grid gap-2">
+                  <label
+                    class="text-sm font-medium text-slate-700"
+                    for="deed-date"
+                    >Date</label
+                  >
+                  <input
+                    id="deed-date"
+                    type="date"
+                    name="date"
+                    class="rounded-lg border border-slate-200 px-3 py-2 text-base shadow-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
+                    required
+                  />
+                </div>
+                <div class="grid gap-2">
+                  <label
+                    class="text-sm font-medium text-slate-700"
+                    for="deed-duration"
+                    >Time spent</label
+                  >
+                  <select
+                    id="deed-duration"
+                    name="duration"
+                    class="rounded-lg border border-slate-200 px-3 py-2 text-base shadow-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
+                    required
+                  >
+                    <option value="">Select one</option>
+                    <option>Under 30 minutes</option>
+                    <option>30-60 minutes</option>
+                    <option>1-2 hours</option>
+                    <option>Half day</option>
+                  </select>
+                </div>
+              </div>
+              <div class="grid gap-2">
+                <label
+                  class="text-sm font-medium text-slate-700"
+                  for="deed-impact"
+                  >Impact area</label
+                >
+                <select
+                  id="deed-impact"
+                  name="impact"
+                  class="rounded-lg border border-slate-200 px-3 py-2 text-base shadow-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
+                >
+                  <option>Food access</option>
+                  <option>Housing</option>
+                  <option>Education</option>
+                  <option>Environment</option>
+                  <option>Community care</option>
+                </select>
+              </div>
+              <div class="grid gap-2">
+                <label
+                  class="text-sm font-medium text-slate-700"
+                  for="deed-description"
+                  >What did you do?</label
+                >
+                <textarea
+                  id="deed-description"
+                  name="description"
+                  rows="4"
+                  class="rounded-lg border border-slate-200 px-3 py-2 text-base shadow-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
+                  placeholder="Describe the actions you took, how many neighbors you supported, and any partners you coordinated with."
+                  required
+                ></textarea>
+              </div>
+              <div class="grid gap-2">
+                <label
+                  class="text-sm font-medium text-slate-700"
+                  for="deed-partners"
+                  >Collaborators</label
+                >
+                <input
+                  id="deed-partners"
+                  type="text"
+                  name="partners"
+                  placeholder="Elm Street mutual aid group"
+                  class="rounded-lg border border-slate-200 px-3 py-2 text-base shadow-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
+                />
+              </div>
+            </fieldset>
+            <div class="mt-6 flex flex-wrap items-center justify-between gap-3">
+              <a
+                href="public/dashboard.html"
+                class="text-sm text-slate-500 hover:text-slate-700"
+                >Back to dashboard</a
+              >
+              <button
+                type="submit"
+                class="inline-flex items-center justify-center rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700"
+              >
+                Submit deed
+              </button>
+            </div>
+          </form>
+
+          <aside class="grid gap-6">
+            <article
+              class="rounded-2xl border border-slate-100 bg-white p-6 text-sm text-slate-700"
+            >
+              <h2 class="text-base font-semibold text-slate-900">
+                Tips to include
+              </h2>
+              <ul class="mt-3 list-disc space-y-2 pl-4">
+                <li>Mention who benefited and how many people participated.</li>
+                <li>
+                  Share resources or partners other neighbors can contact.
+                </li>
+                <li>
+                  Attach photos or receipts when you email follow-up details.
+                </li>
+              </ul>
+            </article>
+            <article
+              class="rounded-2xl border border-slate-100 bg-white p-6 text-sm text-slate-700"
+            >
+              <h2 class="text-base font-semibold text-slate-900">
+                What happens next?
+              </h2>
+              <ol class="mt-3 list-decimal space-y-2 pl-4">
+                <li>
+                  Our block captain reviews your submission within 24 hours.
+                </li>
+                <li>Your deed appears on the community feed.</li>
+                <li>You earn streak credit and may unlock new badges.</li>
+              </ol>
+              <a
+                href="leaderboard.html"
+                class="mt-4 inline-flex items-center justify-center rounded-lg bg-white px-4 py-2 font-semibold text-teal-700 shadow-sm transition hover:bg-teal-50"
+              >
+                See how deeds add up
+              </a>
+            </article>
+          </aside>
+        </section>
+      </main>
+    </div>
+    <script src="public/script.js" defer></script>
+  </body>
+</html>
