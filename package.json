@@ -1,0 +1,14 @@
+{
+  "name": "deeds-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "lint": "prettier --check \"functions/**/*.js\" \"public/**/*.{html,css,js}\"",
+    "format": "prettier --write \"functions/**/*.js\" \"public/**/*.{html,css,js}\""
+  },
+  "devDependencies": {
+    "prettier": "^3.2.5"
+  }
+}
