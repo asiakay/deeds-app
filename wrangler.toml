@@ -1,10 +1,11 @@
 name = "deeds-app"
 main = "functions/_worker.js"
-compatibility_date = "2025-10-23"
+compatibility_date = "2023-10-23"
 
 [site]
 bucket = "./public"
 
-[[kv_namespaces]]
-binding = "DEEDS_KV"
-id = "your-kv-id-here"
+[[d1_databases]]
+binding = "DEEDS_DB"
+database_name = "deeds-app-db"
+database_id = "00000000-0000-0000-0000-000000000000"
