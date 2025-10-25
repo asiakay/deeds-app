@@ -18,6 +18,129 @@ function responseWithMessage(message, status = 200, extra = {}) {
   return Response.json({ message, ...extra }, { status });
 }
 
+function buildCorsHeaders(request) {
+  const origin = request.headers.get("Origin");
+  const headers = new Headers();
+  if (origin) {
+    headers.set("Access-Control-Allow-Origin", origin);
+    headers.set("Vary", "Origin");
+    headers.set("Access-Control-Allow-Credentials", "true");
+  }
+  headers.set("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  headers.set("Access-Control-Allow-Headers", "Content-Type");
+  return headers;
+}
+
+function applyCors(request, response) {
+  const corsHeaders = buildCorsHeaders(request);
+  for (const [key, value] of corsHeaders) {
+    if (value) {
+      response.headers.set(key, value);
+    }
+  }
+  return response;
+}
+
+function parseCookies(request) {
+  const header = request.headers.get("Cookie");
+  if (!header) return {};
+  return header.split(/;\s*/).reduce((acc, part) => {
+    if (!part) return acc;
+    const [name, ...rest] = part.split("=");
+    if (!name) return acc;
+    acc[name] = decodeURIComponent(rest.join("="));
+    return acc;
+  }, {});
+}
+
+function generateSessionToken() {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function createSession(env, userId, ttlMinutes = 60 * 24 * 7) {
+  const token = generateSessionToken();
+  const createdAt = new Date();
+  const expiresAt = new Date(createdAt.getTime() + ttlMinutes * 60 * 1000);
+  await env.DEEDS_DB.prepare(
+    "INSERT INTO sessions (token, user_id, created_at, expires_at) VALUES (?1, ?2, ?3, ?4)",
+  )
+    .bind(token, userId, createdAt.toISOString(), expiresAt.toISOString())
+    .run();
+  return { token, expiresAt };
+}
+
+async function getSession(env, token) {
+  if (!token) return null;
+  const row = await env.DEEDS_DB.prepare(
+    `SELECT s.token, s.expires_at, u.id, u.name, u.email, u.created_at, u.completed_deeds
+     FROM sessions s
+     INNER JOIN users u ON u.id = s.user_id
+     WHERE s.token = ?1`,
+  )
+    .bind(token)
+    .first();
+
+  if (!row) {
+    return null;
+  }
+
+  const now = Date.now();
+  const expiresAt = Date.parse(row.expires_at);
+  if (Number.isFinite(expiresAt) && expiresAt < now) {
+    await env.DEEDS_DB.prepare("DELETE FROM sessions WHERE token = ?1")
+      .bind(token)
+      .run();
+    return null;
+  }
+
+  return row;
+}
+
+async function destroySession(env, token) {
+  if (!token) return;
+  await env.DEEDS_DB.prepare("DELETE FROM sessions WHERE token = ?1")
+    .bind(token)
+    .run();
+}
+
+function setSessionCookie(request, headers, token, expiresAt) {
+  const url = new URL(request.url);
+  const maxAgeSeconds = Math.max(
+    0,
+    Math.round((expiresAt.getTime() - Date.now()) / 1000),
+  );
+  const cookieParts = [
+    `session=${token}`,
+    `Path=/`,
+    `HttpOnly`,
+    `SameSite=Lax`,
+    `Expires=${expiresAt.toUTCString()}`,
+    `Max-Age=${maxAgeSeconds}`,
+  ];
+  if (url.protocol === "https:") {
+    cookieParts.push("Secure");
+  }
+  headers.append("Set-Cookie", cookieParts.join("; "));
+}
+
+function clearSessionCookie(request, headers) {
+  const url = new URL(request.url);
+  const cookieParts = [
+    "session=",
+    "Path=/",
+    "HttpOnly",
+    "SameSite=Lax",
+    "Expires=Thu, 01 Jan 1970 00:00:00 GMT",
+    "Max-Age=0",
+  ];
+  if (url.protocol === "https:") {
+    cookieParts.push("Secure");
+  }
+  headers.append("Set-Cookie", cookieParts.join("; "));
+}
+
 async function handleSignup(request, env) {
   if (!env.DEEDS_DB) {
     return responseWithMessage(
@@ -76,13 +199,23 @@ async function handleSignup(request, env) {
       name,
       email,
       createdAt,
+      completed: 0,
     };
 
-    return responseWithMessage(
+    const session = await createSession(env, profile.id);
+
+    const response = responseWithMessage(
       `Welcome to Deeds, ${name.split(" ")[0]}!`,
       201,
       { profile },
     );
+    setSessionCookie(
+      request,
+      response.headers,
+      session.token,
+      session.expiresAt,
+    );
+    return response;
   } catch (error) {
     console.error("Sign-up failed", error);
     return responseWithMessage(
@@ -116,7 +249,7 @@ async function handleLogin(request, env) {
 
   try {
     const user = await env.DEEDS_DB.prepare(
-      "SELECT id, name, email, password_hash, created_at FROM users WHERE email = ?1",
+      "SELECT id, name, email, password_hash, created_at, completed_deeds FROM users WHERE email = ?1",
     )
       .bind(email)
       .first();
@@ -155,12 +288,26 @@ async function handleLogin(request, env) {
       name: user.name,
       email: user.email,
       createdAt: user.created_at,
+      completed: Number(user.completed_deeds ?? 0),
     };
 
+    const session = await createSession(env, user.id);
+
     const greetingName = user.name?.split(" ")[0] || user.email;
-    return responseWithMessage(`Welcome back, ${greetingName}!`, 200, {
-      profile,
-    });
+    const response = responseWithMessage(
+      `Welcome back, ${greetingName}!`,
+      200,
+      {
+        profile,
+      },
+    );
+    setSessionCookie(
+      request,
+      response.headers,
+      session.token,
+      session.expiresAt,
+    );
+    return response;
   } catch (error) {
     console.error("Login failed", error);
     return responseWithMessage(
@@ -168,6 +315,51 @@ async function handleLogin(request, env) {
       500,
     );
   }
+}
+
+async function handleProfile(request, env) {
+  if (!env.DEEDS_DB) {
+    return responseWithMessage(
+      "Database binding missing. Configure DEEDS_DB.",
+      500,
+    );
+  }
+
+  const cookies = parseCookies(request);
+  const token = cookies.session;
+  const session = await getSession(env, token);
+  if (!session) {
+    return responseWithMessage("Authentication required.", 401);
+  }
+
+  const profile = {
+    id: session.id,
+    name: session.name,
+    email: session.email,
+    createdAt: session.created_at,
+    completed: Number(session.completed_deeds ?? 0),
+  };
+
+  return Response.json({ profile });
+}
+
+async function handleLogout(request, env) {
+  if (!env.DEEDS_DB) {
+    return responseWithMessage(
+      "Database binding missing. Configure DEEDS_DB.",
+      500,
+    );
+  }
+
+  const cookies = parseCookies(request);
+  const token = cookies.session;
+  if (token) {
+    await destroySession(env, token);
+  }
+
+  const response = responseWithMessage("You have been logged out.");
+  clearSessionCookie(request, response.headers);
+  return response;
 }
 
 const DEFAULT_HTML = `<!doctype html>
@@ -254,26 +446,30 @@ export default {
     const url = new URL(request.url);
 
     if (request.method === "OPTIONS") {
-      return new Response(null, {
+      const response = new Response(null, {
         status: 204,
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type",
-        },
       });
+      return applyCors(request, response);
     }
 
     if (url.pathname === "/api/auth/signup" && request.method === "POST") {
       const response = await handleSignup(request, env);
-      response.headers.set("Access-Control-Allow-Origin", "*");
-      return response;
+      return applyCors(request, response);
     }
 
     if (url.pathname === "/api/auth/login" && request.method === "POST") {
       const response = await handleLogin(request, env);
-      response.headers.set("Access-Control-Allow-Origin", "*");
-      return response;
+      return applyCors(request, response);
+    }
+
+    if (url.pathname === "/api/auth/logout" && request.method === "POST") {
+      const response = await handleLogout(request, env);
+      return applyCors(request, response);
+    }
+
+    if (url.pathname === "/api/profile" && request.method === "GET") {
+      const response = await handleProfile(request, env);
+      return applyCors(request, response);
     }
 
     if (env.ASSETS) {
