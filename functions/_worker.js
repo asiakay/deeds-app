@@ -129,7 +129,24 @@ async function handleLogin(request, env) {
     }
 
     const hashedPassword = await hashPassword(password);
-    if (hashedPassword !== user.password_hash) {
+    const storedHash = String(user.password_hash || "");
+    const normalizedStoredHash = storedHash.toLowerCase();
+    const normalizedHashedPassword = hashedPassword.toLowerCase();
+    let passwordMatches = normalizedStoredHash === normalizedHashedPassword;
+
+    if (!passwordMatches) {
+      const looksHashed = /^[a-f0-9]{64}$/.test(normalizedStoredHash);
+      if (!looksHashed && storedHash === password) {
+        passwordMatches = true;
+        await env.DEEDS_DB.prepare(
+          "UPDATE users SET password_hash = ?1 WHERE id = ?2",
+        )
+          .bind(hashedPassword, user.id)
+          .run();
+      }
+    }
+
+    if (!passwordMatches) {
       return responseWithMessage("Incorrect password. Please try again.", 401);
     }
 
