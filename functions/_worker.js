@@ -6,6 +6,32 @@ async function parseJsonBody(request) {
   }
 }
 
+async function parseWaitlistPayload(request) {
+  const contentType = request.headers.get("content-type") || "";
+
+  if (contentType.includes("application/json")) {
+    return await parseJsonBody(request);
+  }
+
+  if (
+    contentType.includes("application/x-www-form-urlencoded") ||
+    contentType.includes("multipart/form-data")
+  ) {
+    try {
+      const formData = await request.formData();
+      return {
+        email: formData.get("email"),
+        name: formData.get("name"),
+      };
+    } catch (error) {
+      console.warn("Unable to parse waitlist form submission", error);
+      return null;
+    }
+  }
+
+  return await parseJsonBody(request);
+}
+
 async function hashPassword(password) {
   const data = new TextEncoder().encode(password);
   const digest = await crypto.subtle.digest("SHA-256", data);
@@ -153,6 +179,75 @@ async function handleLogin(request, env) {
   }
 }
 
+async function handleWaitlistSignup(request, env) {
+  if (!env.DEEDS_DB) {
+    return responseWithMessage(
+      "Database binding missing. Configure DEEDS_DB.",
+      500,
+    );
+  }
+
+  const payload = await parseWaitlistPayload(request);
+  if (!payload) {
+    return responseWithMessage("Invalid submission payload.", 400);
+  }
+
+  const email = String(payload.email || "")
+    .trim()
+    .toLowerCase();
+  const name = String(payload.name || "").trim();
+
+  if (!email) {
+    return responseWithMessage("An email address is required.", 400);
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return responseWithMessage("Please provide a valid email address.", 400);
+  }
+
+  const normalizedName = name || null;
+
+  try {
+    await env.DEEDS_DB.prepare(
+      "INSERT INTO waitlist_signups (email, name) VALUES (?1, NULLIF(?2, ''))",
+    )
+      .bind(email, name)
+      .run();
+
+    return responseWithMessage(
+      "You're on the list! We'll reach out as soon as Deeds is ready.",
+      201,
+    );
+  } catch (error) {
+    if (error?.message?.includes("UNIQUE")) {
+      if (normalizedName) {
+        try {
+          await env.DEEDS_DB.prepare(
+            "UPDATE waitlist_signups SET name = ?1 WHERE email = ?2",
+          )
+            .bind(normalizedName, email)
+            .run();
+        } catch (updateError) {
+          console.warn(
+            "Unable to refresh waitlist name for existing signup",
+            updateError,
+          );
+        }
+      }
+      return responseWithMessage(
+        "You're already on the list—we'll keep you posted!",
+        200,
+      );
+    }
+
+    console.error("Waitlist sign-up failed", error);
+    return responseWithMessage(
+      "We couldn't save your email right now. Please try again soon.",
+      500,
+    );
+  }
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -176,6 +271,12 @@ export default {
 
     if (url.pathname === "/api/auth/login" && request.method === "POST") {
       const response = await handleLogin(request, env);
+      response.headers.set("Access-Control-Allow-Origin", "*");
+      return response;
+    }
+
+    if (url.pathname === "/api/waitlist" && request.method === "POST") {
+      const response = await handleWaitlistSignup(request, env);
       response.headers.set("Access-Control-Allow-Origin", "*");
       return response;
     }
