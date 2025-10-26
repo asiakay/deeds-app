@@ -88,114 +88,53 @@
 
         <section class="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
           <form
+            id="deedForm"
             class="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm"
-            data-deed-form
           >
             <fieldset class="grid gap-6">
-              <legend class="sr-only">Deed details</legend>
+              <legend class="sr-only">Submit a new deed</legend>
               <div class="grid gap-2">
                 <label
                   class="text-sm font-medium text-slate-700"
-                  for="deed-title"
-                  >Title</label
+                  for="deedTitle"
+                  >Deed title</label
                 >
                 <input
-                  id="deed-title"
+                  id="deedTitle"
                   type="text"
                   name="title"
                   placeholder="Delivered groceries to Mrs. Ortiz"
                   class="rounded-lg border border-slate-200 px-3 py-2 text-base shadow-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
                   required
                 />
-              </div>
-              <div class="grid gap-2 sm:grid-cols-2">
-                <div class="grid gap-2">
-                  <label
-                    class="text-sm font-medium text-slate-700"
-                    for="deed-date"
-                    >Date</label
-                  >
-                  <input
-                    id="deed-date"
-                    type="date"
-                    name="date"
-                    class="rounded-lg border border-slate-200 px-3 py-2 text-base shadow-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
-                    required
-                  />
-                </div>
-                <div class="grid gap-2">
-                  <label
-                    class="text-sm font-medium text-slate-700"
-                    for="deed-duration"
-                    >Time spent</label
-                  >
-                  <select
-                    id="deed-duration"
-                    name="duration"
-                    class="rounded-lg border border-slate-200 px-3 py-2 text-base shadow-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
-                    required
-                  >
-                    <option value="">Select one</option>
-                    <option>Under 30 minutes</option>
-                    <option>30-60 minutes</option>
-                    <option>1-2 hours</option>
-                    <option>Half day</option>
-                  </select>
-                </div>
+                <p class="text-xs text-slate-500">
+                  Keep it short and celebratory so your neighbors can cheer you
+                  on.
+                </p>
               </div>
               <div class="grid gap-2">
-                <label
-                  class="text-sm font-medium text-slate-700"
-                  for="deed-impact"
-                  >Impact area</label
-                >
-                <select
-                  id="deed-impact"
-                  name="impact"
-                  class="rounded-lg border border-slate-200 px-3 py-2 text-base shadow-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
-                >
-                  <option>Food access</option>
-                  <option>Housing</option>
-                  <option>Education</option>
-                  <option>Environment</option>
-                  <option>Community care</option>
-                </select>
-              </div>
-              <div class="grid gap-2">
-                <label
-                  class="text-sm font-medium text-slate-700"
-                  for="deed-description"
-                  >What did you do?</label
-                >
-                <textarea
-                  id="deed-description"
-                  name="description"
-                  rows="4"
-                  class="rounded-lg border border-slate-200 px-3 py-2 text-base shadow-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
-                  placeholder="Describe the actions you took, how many neighbors you supported, and any partners you coordinated with."
-                  required
-                ></textarea>
-              </div>
-              <div class="grid gap-2">
-                <label
-                  class="text-sm font-medium text-slate-700"
-                  for="deed-partners"
-                  >Collaborators</label
+                <label class="text-sm font-medium text-slate-700" for="proofUrl"
+                  >Proof URL</label
                 >
                 <input
-                  id="deed-partners"
-                  type="text"
-                  name="partners"
-                  placeholder="Elm Street mutual aid group"
+                  id="proofUrl"
+                  type="url"
+                  name="proof_url"
+                  placeholder="https://photos.app.goo.gl/example"
                   class="rounded-lg border border-slate-200 px-3 py-2 text-base shadow-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
+                  required
                 />
+                <p class="text-xs text-slate-500">
+                  Share a link to photos, receipts, or a short write-up that
+                  proves the deed happened.
+                </p>
               </div>
             </fieldset>
-            <p
+            <div
               class="min-h-[1.25rem] text-sm text-slate-600"
-              data-role="form-message"
               aria-live="polite"
-            ></p>
+              id="deedFeedback"
+            ></div>
             <div class="mt-6 flex flex-wrap items-center justify-between gap-3">
               <a
                 href="dashboard.html"
@@ -253,5 +192,6 @@
       </main>
     </div>
     <script src="script.js" defer></script>
+    <script src="submit.js" defer></script>
   </body>
 </html>

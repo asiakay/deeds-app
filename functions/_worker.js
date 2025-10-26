@@ -262,13 +262,17 @@ async function handleCreateDeed(request, env) {
     return responseWithMessage("A valid user_id must be provided.", 400);
   }
 
-  const title = sanitizeText(payload.deed_title ?? payload.title);
+  const title = sanitizeText(payload.title ?? payload.deed_title);
   if (!title) {
     return responseWithMessage("A deed title is required.", 400);
   }
-  if (title.length < 3) {
+
+  const proofUrl = sanitizeText(
+    payload.proof_url ?? payload.proofUrl ?? payload.proof ?? "",
+  );
+  if (!proofUrl) {
     return responseWithMessage(
-      "Deed titles should be at least 3 characters long.",
+      "A proof URL is required to submit your deed.",
       400,
     );
   }
@@ -276,62 +280,51 @@ async function handleCreateDeed(request, env) {
   const description = sanitizeText(
     payload.description ?? payload.deed_description ?? payload.details,
   );
-  if (!description) {
-    return responseWithMessage("Please describe the deed you completed.", 400);
-  }
-  if (description.length < 10) {
-    return responseWithMessage(
-      "Descriptions should be at least 10 characters long.",
-      400,
-    );
-  }
 
-  const deedDate = normalizeDeedDate(
+  let deedDate = null;
+  const deedDateInput = sanitizeText(
     payload.deed_date ?? payload.date ?? payload.performed_on,
   );
-  if (!deedDate) {
-    return responseWithMessage(
-      "Please provide a valid date in YYYY-MM-DD format.",
-      400,
-    );
+  if (deedDateInput) {
+    const normalized = normalizeDeedDate(deedDateInput);
+    if (!normalized) {
+      return responseWithMessage(
+        "Please provide dates in YYYY-MM-DD format.",
+        400,
+      );
+    }
+    deedDate = normalized;
   }
 
-  const duration = normalizeOption(
-    payload.duration ?? payload.time_spent ?? payload.timeSpent,
-    DURATION_OPTIONS,
-  );
-  if (!duration) {
-    return responseWithMessage(
-      "Please select how long the deed took to complete.",
-      400,
-    );
+  let duration = null;
+  const durationInput =
+    payload.duration ?? payload.time_spent ?? payload.timeSpent;
+  if (durationInput) {
+    duration = normalizeOption(durationInput, DURATION_OPTIONS);
+    if (!duration) {
+      return responseWithMessage(
+        "Please choose one of the supported duration options.",
+        400,
+      );
+    }
   }
 
+  let impactArea = null;
   const impactInput =
-    payload.impact ?? payload.impact_area ?? payload.impactArea ?? "";
-  const impactArea = impactInput
-    ? normalizeOption(impactInput, IMPACT_OPTIONS)
-    : IMPACT_OPTIONS[0];
-  if (impactInput && !impactArea) {
-    return responseWithMessage(
-      "Please choose one of the supported impact areas.",
-      400,
-    );
+    payload.impact ?? payload.impact_area ?? payload.impactArea;
+  if (impactInput) {
+    impactArea = normalizeOption(impactInput, IMPACT_OPTIONS);
+    if (!impactArea) {
+      return responseWithMessage(
+        "Please choose one of the supported impact areas.",
+        400,
+      );
+    }
   }
 
   const partners = sanitizePartners(
     payload.partners ?? payload.collaborators ?? payload.team,
   );
-
-  const proofUrlValue =
-    payload.proof_url ?? payload.proofUrl ?? payload.proof ?? payload.proofLink;
-  const proofUrl = normalizeUrl(proofUrlValue);
-  if (proofUrl === null) {
-    return responseWithMessage(
-      "If provided, the proof_url must be a valid URL.",
-      400,
-    );
-  }
 
   try {
     const user = await env.DEEDS_DB.prepare(
@@ -347,49 +340,95 @@ async function handleCreateDeed(request, env) {
       );
     }
 
-    const timestamp = new Date().toISOString();
-    const status = "pending";
-
     const result = await env.DEEDS_DB.prepare(
-      "INSERT INTO deeds (user_id, title, proof_url, status, created_at, deed_date, duration, impact_area, description, partners) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+      `INSERT INTO deeds (
+        user_id,
+        title,
+        proof_url,
+        status,
+        created_at,
+        deed_date,
+        duration,
+        impact_area,
+        description,
+        partners
+      ) VALUES (?1, ?2, ?3, 'pending', datetime('now'), ?4, ?5, ?6, ?7, ?8)`,
     )
       .bind(
         userId,
         title,
-        proofUrl || "",
-        status,
-        timestamp,
+        proofUrl,
         deedDate,
         duration,
-        impactArea || "",
-        description,
+        impactArea,
+        description || null,
         partners || null,
       )
       .run();
 
     return Response.json(
-      {
-        success: true,
-        deed: {
-          id: result.meta.last_row_id,
-          user_id: userId,
-          title,
-          description,
-          proof_url: proofUrl || null,
-          deed_date: deedDate,
-          duration,
-          impact_area: impactArea || null,
-          partners: partners || null,
-          status,
-          created_at: timestamp,
-        },
-      },
+      { success: true, deed_id: result.meta.last_row_id },
       { status: 201 },
     );
   } catch (error) {
     console.error("Failed to create deed", error);
     return responseWithMessage(
       "We could not save your deed. Please try again later.",
+      500,
+    );
+  }
+}
+
+async function handleVerifyDeed(request, env) {
+  if (!env.DEEDS_DB) {
+    return responseWithMessage(
+      "Database binding missing. Configure DEEDS_DB.",
+      500,
+    );
+  }
+
+  const payload = await parseJsonBody(request);
+  if (!payload) {
+    return responseWithMessage("Invalid JSON payload.", 400);
+  }
+
+  const deedId = Number(payload.deed_id ?? payload.deedId);
+  if (!Number.isInteger(deedId) || deedId <= 0) {
+    return responseWithMessage("A valid deed_id must be provided.", 400);
+  }
+
+  try {
+    const updateResult = await env.DEEDS_DB.prepare(
+      "UPDATE deeds SET status = 'verified' WHERE id = ?1",
+    )
+      .bind(deedId)
+      .run();
+
+    if (!updateResult.meta || updateResult.meta.changes === 0) {
+      return responseWithMessage("We couldn't find that deed.", 404);
+    }
+
+    const user = await env.DEEDS_DB.prepare(
+      "SELECT user_id FROM deeds WHERE id = ?1",
+    )
+      .bind(deedId)
+      .first();
+
+    if (!user) {
+      return responseWithMessage("We couldn't find the deed owner.", 404);
+    }
+
+    await env.DEEDS_DB.prepare(
+      "UPDATE users SET credits = credits + 1 WHERE id = ?1",
+    )
+      .bind(user.user_id)
+      .run();
+
+    return Response.json({ success: true });
+  } catch (error) {
+    console.error("Failed to verify deed", error);
+    return responseWithMessage(
+      "We could not verify the deed. Please try again later.",
       500,
     );
   }
@@ -503,6 +542,12 @@ export default {
 
     if (url.pathname === "/api/deeds" && request.method === "POST") {
       const response = await handleCreateDeed(request, env);
+      response.headers.set("Access-Control-Allow-Origin", "*");
+      return response;
+    }
+
+    if (url.pathname === "/api/verify" && request.method === "POST") {
+      const response = await handleVerifyDeed(request, env);
       response.headers.set("Access-Control-Allow-Origin", "*");
       return response;
     }

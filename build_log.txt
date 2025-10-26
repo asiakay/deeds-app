@@ -1,0 +1,1 @@
+[2025-10-26] Implemented deed submission endpoint, verification credit updates, simplified submit form, and auto-refreshing leaderboard.
