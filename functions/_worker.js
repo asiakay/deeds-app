@@ -326,10 +326,18 @@ async function handleCreateDeed(request, env) {
     payload.partners ?? payload.collaborators ?? payload.team,
   );
 
+  const db = env.DEEDS_DB;
+
+  if (!db) {
+    return responseWithMessage(
+      "Database binding missing. Configure DEEDS_DB.",
+      500,
+    );
+  }
+
   try {
-    const user = await env.DEEDS_DB.prepare(
-      "SELECT id FROM users WHERE id = ?1",
-    )
+    const user = await db
+      .prepare("SELECT id FROM users WHERE id = ?1")
       .bind(userId)
       .first();
 
@@ -340,7 +348,7 @@ async function handleCreateDeed(request, env) {
       );
     }
 
-    const result = await env.DEEDS_DB.prepare(
+    const stmt = db.prepare(
       `INSERT INTO deeds (
         user_id,
         title,
@@ -353,7 +361,9 @@ async function handleCreateDeed(request, env) {
         description,
         partners
       ) VALUES (?1, ?2, ?3, 'pending', datetime('now'), ?4, ?5, ?6, ?7, ?8)`,
-    )
+    );
+
+    const result = await stmt
       .bind(
         userId,
         title,
@@ -371,10 +381,16 @@ async function handleCreateDeed(request, env) {
       { status: 201 },
     );
   } catch (error) {
-    console.error("Failed to create deed", error);
-    return responseWithMessage(
-      "We could not save your deed. Please try again later.",
-      500,
+    const errorMessage =
+      (error && typeof error === "object" && "message" in error
+        ? error.message
+        : null) || "We could not save your deed. Please try again later.";
+
+    console.error("Deed save error:", errorMessage);
+
+    return Response.json(
+      { success: false, message: errorMessage },
+      { status: 500 },
     );
   }
 }
