@@ -1,0 +1,5 @@
+ALTER TABLE deeds ADD COLUMN deed_date TEXT;
+ALTER TABLE deeds ADD COLUMN duration TEXT;
+ALTER TABLE deeds ADD COLUMN impact_area TEXT;
+ALTER TABLE deeds ADD COLUMN description TEXT;
+ALTER TABLE deeds ADD COLUMN partners TEXT;
