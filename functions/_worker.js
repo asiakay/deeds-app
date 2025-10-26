@@ -1,3 +1,18 @@
+const DURATION_OPTIONS = [
+  "Under 30 minutes",
+  "30-60 minutes",
+  "1-2 hours",
+  "Half day",
+];
+
+const IMPACT_OPTIONS = [
+  "Food access",
+  "Housing",
+  "Education",
+  "Environment",
+  "Community care",
+];
+
 async function parseJsonBody(request) {
   try {
     return await request.json();
@@ -22,6 +37,56 @@ function normalizePathname(pathname) {
     return pathname;
   }
   return pathname.replace(/\/+$/, "");
+}
+
+function normalizeOption(value, options) {
+  if (!value) return null;
+  const trimmed = String(value).trim();
+  if (!trimmed) return null;
+
+  const match = options.find(
+    (option) => option.toLowerCase() === trimmed.toLowerCase(),
+  );
+  return match || null;
+}
+
+function sanitizeText(value) {
+  if (!value && value !== 0) return "";
+  return String(value).replace(/\s+/g, " ").trim();
+}
+
+function sanitizePartners(value) {
+  const sanitized = sanitizeText(value);
+  if (!sanitized) return "";
+  return sanitized
+    .split(/[,;\n]/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(", ");
+}
+
+function normalizeDeedDate(value) {
+  const sanitized = sanitizeText(value);
+  if (!sanitized) return null;
+  const match = sanitized.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const [, year, month, day] = match;
+  const date = new Date(`${year}-${month}-${day}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+  return `${year}-${month}-${day}`;
+}
+
+function normalizeUrl(value) {
+  const sanitized = sanitizeText(value);
+  if (!sanitized) return "";
+  try {
+    const url = new URL(sanitized);
+    return url.toString();
+  } catch (error) {
+    return null;
+  }
 }
 
 async function hashPassword(password) {
@@ -201,34 +266,133 @@ async function handleCreateDeed(request, env) {
     return responseWithMessage("Invalid JSON payload.", 400);
   }
 
-  const userId = Number(payload.user_id);
-  const title = String(payload.deed_title || "").trim();
-  const proofUrl = String(payload.proof_url || "").trim();
-
+  const userId = Number(payload.user_id ?? payload.userId);
   if (!Number.isInteger(userId) || userId <= 0) {
     return responseWithMessage("A valid user_id must be provided.", 400);
   }
 
+  const title = sanitizeText(payload.deed_title ?? payload.title);
   if (!title) {
-    return responseWithMessage("deed_title is required.", 400);
+    return responseWithMessage("A deed title is required.", 400);
+  }
+  if (title.length < 3) {
+    return responseWithMessage(
+      "Deed titles should be at least 3 characters long.",
+      400,
+    );
   }
 
-  if (!proofUrl) {
-    return responseWithMessage("proof_url is required.", 400);
+  const description = sanitizeText(
+    payload.description ?? payload.deed_description ?? payload.details,
+  );
+  if (!description) {
+    return responseWithMessage("Please describe the deed you completed.", 400);
+  }
+  if (description.length < 10) {
+    return responseWithMessage(
+      "Descriptions should be at least 10 characters long.",
+      400,
+    );
   }
 
-  const timestamp = new Date().toISOString();
-  const status = "pending";
+  const deedDate = normalizeDeedDate(
+    payload.deed_date ?? payload.date ?? payload.performed_on,
+  );
+  if (!deedDate) {
+    return responseWithMessage(
+      "Please provide a valid date in YYYY-MM-DD format.",
+      400,
+    );
+  }
+
+  const duration = normalizeOption(
+    payload.duration ?? payload.time_spent ?? payload.timeSpent,
+    DURATION_OPTIONS,
+  );
+  if (!duration) {
+    return responseWithMessage(
+      "Please select how long the deed took to complete.",
+      400,
+    );
+  }
+
+  const impactInput =
+    payload.impact ?? payload.impact_area ?? payload.impactArea ?? "";
+  const impactArea = impactInput
+    ? normalizeOption(impactInput, IMPACT_OPTIONS)
+    : IMPACT_OPTIONS[0];
+  if (impactInput && !impactArea) {
+    return responseWithMessage(
+      "Please choose one of the supported impact areas.",
+      400,
+    );
+  }
+
+  const partners = sanitizePartners(
+    payload.partners ?? payload.collaborators ?? payload.team,
+  );
+
+  const proofUrlValue =
+    payload.proof_url ?? payload.proofUrl ?? payload.proof ?? payload.proofLink;
+  const proofUrl = normalizeUrl(proofUrlValue);
+  if (proofUrl === null) {
+    return responseWithMessage(
+      "If provided, the proof_url must be a valid URL.",
+      400,
+    );
+  }
 
   try {
-    const result = await env.DEEDS_DB.prepare(
-      "INSERT INTO deeds (user_id, title, proof_url, status, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+    const user = await env.DEEDS_DB.prepare(
+      "SELECT id FROM users WHERE id = ?1",
     )
-      .bind(userId, title, proofUrl, status, timestamp)
+      .bind(userId)
+      .first();
+
+    if (!user) {
+      return responseWithMessage(
+        "We could not find that user account. Please log in again.",
+        404,
+      );
+    }
+
+    const timestamp = new Date().toISOString();
+    const status = "pending";
+
+    const result = await env.DEEDS_DB.prepare(
+      "INSERT INTO deeds (user_id, title, proof_url, status, created_at, deed_date, duration, impact_area, description, partners) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+    )
+      .bind(
+        userId,
+        title,
+        proofUrl || "",
+        status,
+        timestamp,
+        deedDate,
+        duration,
+        impactArea || "",
+        description,
+        partners || null,
+      )
       .run();
 
     return Response.json(
-      { success: true, deed_id: result.meta.last_row_id },
+      {
+        success: true,
+        deed: {
+          id: result.meta.last_row_id,
+          user_id: userId,
+          title,
+          description,
+          proof_url: proofUrl || null,
+          deed_date: deedDate,
+          duration,
+          impact_area: impactArea || null,
+          partners: partners || null,
+          status,
+          created_at: timestamp,
+        },
+      },
       { status: 201 },
     );
   } catch (error) {
