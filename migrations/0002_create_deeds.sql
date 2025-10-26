@@ -1,9 +1,14 @@
-CREATE TABLE IF NOT EXISTS deeds (
+CREATE TABLE deeds (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL,
   title TEXT NOT NULL,
-  proof_url TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'pending',
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  FOREIGN KEY (user_id) REFERENCES users(id)
+  date TEXT,
+  time_spent TEXT,
+  impact_area TEXT,
+  description TEXT,
+  collaborators TEXT,
+  status TEXT DEFAULT 'pending',
+  created_at TEXT DEFAULT (datetime('now'))
 );
+
+ALTER TABLE users ADD COLUMN credits INTEGER DEFAULT 0;
