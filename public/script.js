@@ -343,6 +343,49 @@ function attachDeedForm(profile) {
   });
 }
 
+async function loadLeaderboard() {
+  const tbody = document.getElementById("leaderboard-body");
+  if (!tbody) {
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/leaderboard");
+    if (!response.ok) {
+      throw new Error(`Request failed with status ${response.status}`);
+    }
+
+    const data = await response.json();
+    tbody.innerHTML = "";
+
+    data.forEach((user, index) => {
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td class="px-4 py-3 font-medium text-slate-600">${index + 1}</td>
+        <td class="px-4 py-3">${user.name || "—"}</td>
+        <td class="px-4 py-3 text-right">${user.credits ?? 0}</td>`;
+      tbody.appendChild(row);
+    });
+
+    if (tbody.children.length === 0) {
+      const emptyRow = document.createElement("tr");
+      emptyRow.innerHTML = `
+        <td class="px-4 py-6 text-center text-slate-500" colspan="3">
+          No neighbors on the leaderboard yet. Complete a deed to claim the top spot!
+        </td>`;
+      tbody.appendChild(emptyRow);
+    }
+  } catch (error) {
+    console.error("Failed to load leaderboard", error);
+    tbody.innerHTML = `
+      <tr>
+        <td class="px-4 py-6 text-center text-slate-500" colspan="3">
+          We couldn't load the leaderboard right now. Please try again later.
+        </td>
+      </tr>`;
+  }
+}
+
 window.addEventListener("DOMContentLoaded", () => {
   attachAuthForms();
   attachLogout();
@@ -353,5 +396,8 @@ window.addEventListener("DOMContentLoaded", () => {
       sessionProfile = profile;
       hydrateUI(profile);
     }
+  }
+  if (currentPage === "leaderboard.html") {
+    loadLeaderboard();
   }
 });

@@ -99,83 +99,25 @@
                 >
               </div>
             </div>
-            <ol class="mt-6 space-y-3">
-              <li
-                class="flex items-center justify-between rounded-xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-slate-800"
+            <div class="mt-6 overflow-x-auto">
+              <table
+                class="min-w-full divide-y divide-slate-200 text-left text-sm text-slate-800"
               >
-                <div class="flex items-center gap-3">
-                  <span
-                    class="flex h-8 w-8 items-center justify-center rounded-full bg-teal-600 text-sm font-semibold text-white"
-                    >1</span
-                  >
-                  <div>
-                    <p class="font-semibold">Maya Patel</p>
-                    <p class="text-xs text-slate-500">12 deeds</p>
-                  </div>
-                </div>
-                <span class="text-xs text-teal-700">+4 this week</span>
-              </li>
-              <li
-                class="flex items-center justify-between rounded-xl border border-slate-100 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm"
-              >
-                <div class="flex items-center gap-3">
-                  <span
-                    class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-sm font-semibold text-slate-700"
-                    >2</span
-                  >
-                  <div>
-                    <p class="font-semibold">Diego Chen</p>
-                    <p class="text-xs text-slate-500">10 deeds</p>
-                  </div>
-                </div>
-                <span class="text-xs text-slate-500">+2 this week</span>
-              </li>
-              <li
-                class="flex items-center justify-between rounded-xl border border-slate-100 bg-white px-4 py-3 text-sm text-slate-800 shadow-sm"
-              >
-                <div class="flex items-center gap-3">
-                  <span
-                    class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-sm font-semibold text-slate-700"
-                    >3</span
-                  >
-                  <div>
-                    <p class="font-semibold">Sahana Iyer</p>
-                    <p class="text-xs text-slate-500">9 deeds</p>
-                  </div>
-                </div>
-                <span class="text-xs text-slate-500">+3 this week</span>
-              </li>
-              <li
-                class="flex items-center justify-between rounded-xl border border-slate-100 bg-white px-4 py-3 text-sm text-slate-800"
-              >
-                <div class="flex items-center gap-3">
-                  <span
-                    class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-600"
-                    >4</span
-                  >
-                  <div>
-                    <p class="font-semibold">Imani Reed</p>
-                    <p class="text-xs text-slate-500">7 deeds</p>
-                  </div>
-                </div>
-                <span class="text-xs text-slate-500">+1 this week</span>
-              </li>
-              <li
-                class="flex items-center justify-between rounded-xl border border-slate-100 bg-white px-4 py-3 text-sm text-slate-800"
-              >
-                <div class="flex items-center gap-3">
-                  <span
-                    class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-600"
-                    >5</span
-                  >
-                  <div>
-                    <p class="font-semibold">Khalil Bryant</p>
-                    <p class="text-xs text-slate-500">6 deeds</p>
-                  </div>
-                </div>
-                <span class="text-xs text-slate-500">Maintaining streak</span>
-              </li>
-            </ol>
+                <thead
+                  class="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500"
+                >
+                  <tr>
+                    <th scope="col" class="px-4 py-3">Rank</th>
+                    <th scope="col" class="px-4 py-3">Neighbor</th>
+                    <th scope="col" class="px-4 py-3 text-right">Credits</th>
+                  </tr>
+                </thead>
+                <tbody
+                  id="leaderboard-body"
+                  class="divide-y divide-slate-100 bg-white"
+                ></tbody>
+              </table>
+            </div>
           </div>
 
           <aside class="grid gap-6">
