@@ -1,5 +1,3 @@
-const STORAGE_KEY = "deeds.profile";
-
 function togglePw() {
   const pw = document.getElementById("pw");
   pw.type = pw.type === "password" ? "text" : "password";
@@ -12,34 +10,63 @@ const toneClassMap = {
 };
 
 function saveProfile(profile) {
-  if (!profile) return;
-  const enriched = {
-    ...profile,
-    completed: profile.completed ?? 3,
-  };
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(enriched));
-  } catch (error) {
-    console.warn("Unable to cache profile locally", error);
-  }
+  localStorage.setItem("deeds.profile", JSON.stringify(profile));
 }
 
-function loadProfile() {
+function getProfile() {
+  const data = localStorage.getItem("deeds.profile");
+  if (!data) {
+    return null;
+  }
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw);
+    return JSON.parse(data);
   } catch (error) {
-    console.warn("Unable to read cached profile", error);
+    console.warn("Unable to parse cached profile", error);
+    clearProfile();
     return null;
   }
 }
 
 function clearProfile() {
-  try {
-    localStorage.removeItem(STORAGE_KEY);
-  } catch (error) {
-    console.warn("Unable to clear cached profile", error);
+  localStorage.removeItem("deeds.profile");
+}
+
+const PROFILE_TTL_MS = 24 * 60 * 60 * 1000;
+const PROTECTED_PAGES = new Set([
+  "dashboard.html",
+  "submit.html",
+  "leaderboard.html",
+]);
+
+function isProfileExpired(profile) {
+  if (!profile?.timestamp) {
+    return false;
+  }
+  return Date.now() - Number(profile.timestamp) > PROFILE_TTL_MS;
+}
+
+function hydrateUI(profile) {
+  const page = window.location.pathname.split("/").pop();
+  if (page === "dashboard.html") {
+    hydrateDashboard(profile);
+  }
+}
+
+const currentPage = window.location.pathname.split("/").pop();
+let sessionProfile = null;
+
+if (PROTECTED_PAGES.has(currentPage)) {
+  const profile = getProfile();
+  if (!profile || isProfileExpired(profile)) {
+    clearProfile();
+    window.location.href = "login.html";
+  } else {
+    sessionProfile = profile;
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", () => hydrateUI(profile));
+    } else {
+      hydrateUI(profile);
+    }
   }
 }
 
@@ -125,7 +152,12 @@ function attachAuthForms() {
         }
 
         if (result?.profile) {
-          saveProfile(result.profile);
+          const nextProfile = {
+            ...result.profile,
+            timestamp: Date.now(),
+          };
+          saveProfile(nextProfile);
+          sessionProfile = nextProfile;
         }
 
         setMessage(messageElement, result?.message || "Success!", "success");
@@ -160,8 +192,10 @@ function getInitials(name = "") {
   );
 }
 
-function hydrateDashboard() {
-  const profile = loadProfile();
+function hydrateDashboard(profile) {
+  if (!profile) {
+    return;
+  }
   const nameTarget = document.querySelector('[data-profile-field="name"]');
   const emailTarget = document.querySelector('[data-profile-field="email"]');
   const createdTarget = document.querySelector(
@@ -175,13 +209,6 @@ function hydrateDashboard() {
   );
 
   if (!nameTarget && !emailTarget && !createdTarget) {
-    return;
-  }
-
-  if (!profile) {
-    window.setTimeout(() => {
-      window.location.href = "login.html";
-    }, 1500);
     return;
   }
 
@@ -213,7 +240,7 @@ function attachLogout() {
   });
 }
 
-function attachDeedForm() {
+function attachDeedForm(profile) {
   const form = document.querySelector("[data-deed-form]");
   if (!form) {
     return;
@@ -225,8 +252,13 @@ function attachDeedForm() {
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
 
-    const profile = loadProfile();
-    if (!profile?.id) {
+    const activeProfile = profile || sessionProfile || getProfile();
+    if (
+      !activeProfile ||
+      isProfileExpired(activeProfile) ||
+      !activeProfile.id
+    ) {
+      clearProfile();
       setMessage(
         messageElement,
         "Please log in again to submit your deed.",
@@ -256,7 +288,7 @@ function attachDeedForm() {
     }
 
     const payload = {
-      user_id: profile.id,
+      user_id: activeProfile.id,
       title,
       description,
       date,
@@ -313,7 +345,13 @@ function attachDeedForm() {
 
 window.addEventListener("DOMContentLoaded", () => {
   attachAuthForms();
-  hydrateDashboard();
   attachLogout();
-  attachDeedForm();
+  attachDeedForm(sessionProfile);
+  if (!sessionProfile && PROTECTED_PAGES.has(currentPage)) {
+    const profile = getProfile();
+    if (profile && !isProfileExpired(profile)) {
+      sessionProfile = profile;
+      hydrateUI(profile);
+    }
+  }
 });
