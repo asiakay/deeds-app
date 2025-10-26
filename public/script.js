@@ -213,8 +213,107 @@ function attachLogout() {
   });
 }
 
+function attachDeedForm() {
+  const form = document.querySelector("[data-deed-form]");
+  if (!form) {
+    return;
+  }
+
+  const messageElement = form.querySelector('[data-role="form-message"]');
+  const submitButton = form.querySelector('button[type="submit"]');
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const profile = loadProfile();
+    if (!profile?.id) {
+      setMessage(
+        messageElement,
+        "Please log in again to submit your deed.",
+        "error",
+      );
+      window.setTimeout(() => {
+        window.location.href = "login.html";
+      }, 600);
+      return;
+    }
+
+    const formData = new FormData(form);
+    const title = String(formData.get("title") || "").trim();
+    const description = String(formData.get("description") || "").trim();
+    const date = String(formData.get("date") || "").trim();
+    const duration = String(formData.get("duration") || "").trim();
+    const impact = String(formData.get("impact") || "").trim();
+    const partners = String(formData.get("partners") || "").trim();
+
+    if (!title || !description || !date || !duration) {
+      setMessage(
+        messageElement,
+        "Please complete all required fields before submitting.",
+        "error",
+      );
+      return;
+    }
+
+    const payload = {
+      user_id: profile.id,
+      title,
+      description,
+      date,
+      duration,
+      impact,
+      partners,
+    };
+
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.dataset.loading = "true";
+    }
+    setMessage(messageElement, "Submitting your deed…", "info");
+
+    try {
+      const response = await fetch("/api/deeds", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json().catch(() => null);
+      if (!response.ok) {
+        const fallback =
+          result?.message ||
+          "We couldn't save your deed right now. Please try again.";
+        setMessage(messageElement, fallback, "error");
+        return;
+      }
+
+      form.reset();
+      setMessage(
+        messageElement,
+        "Your deed is on its way! We'll review it shortly.",
+        "success",
+      );
+    } catch (error) {
+      console.error("Failed to submit deed", error);
+      setMessage(
+        messageElement,
+        "We couldn't reach the server. Please check your connection and try again.",
+        "error",
+      );
+    } finally {
+      if (submitButton) {
+        submitButton.disabled = false;
+        delete submitButton.dataset.loading;
+      }
+    }
+  });
+}
+
 window.addEventListener("DOMContentLoaded", () => {
   attachAuthForms();
   hydrateDashboard();
   attachLogout();
+  attachDeedForm();
 });
