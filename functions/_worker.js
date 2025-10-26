@@ -90,9 +90,10 @@ function normalizeUrl(value) {
 }
 
 async function hashPassword(password) {
-  const data = new TextEncoder().encode(password);
-  const digest = await crypto.subtle.digest("SHA-256", data);
-  return [...new Uint8Array(digest)]
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hashBuffer))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 }
@@ -211,26 +212,16 @@ async function handleLogin(request, env) {
       );
     }
 
-    const hashedPassword = await hashPassword(password);
+    const submittedHash = await hashPassword(password);
     const storedHash = String(user.password_hash || "");
-    const normalizedStoredHash = storedHash.toLowerCase();
-    const normalizedHashedPassword = hashedPassword.toLowerCase();
-    let passwordMatches = normalizedStoredHash === normalizedHashedPassword;
 
-    if (!passwordMatches) {
-      const looksHashed = /^[a-f0-9]{64}$/.test(normalizedStoredHash);
-      if (!looksHashed && storedHash === password) {
-        passwordMatches = true;
-        await env.DEEDS_DB.prepare(
-          "UPDATE users SET password_hash = ?1 WHERE id = ?2",
-        )
-          .bind(hashedPassword, user.id)
-          .run();
-      }
-    }
+    console.log("Login hash comparison", {
+      submittedHash,
+      storedHash,
+    });
 
-    if (!passwordMatches) {
-      return responseWithMessage("Incorrect password. Please try again.", 401);
+    if (submittedHash !== storedHash) {
+      return responseWithMessage("Invalid email or password.", 401);
     }
 
     const profile = {
