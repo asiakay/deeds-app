@@ -8,7 +8,7 @@ directory = "./public"
 
 [[d1_databases]]
 binding = "DEEDS_DB"
-database_name = "deeds"
+database_name = "deeds-app-db"
 database_id = "6f28b6d0-bd5c-4e30-9703-a13079d9d44f"
 
 [observability]
