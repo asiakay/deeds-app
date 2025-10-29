@@ -556,52 +556,68 @@ export default {
       return response;
     }
 
-if (url.pathname === "/api/deeds" && request.method === "GET") {
-  if (!env.DEEDS_DB) {
-    const response = responseWithMessage(
-      "Database binding missing. Configure DEEDS_DB.",
-      500
-    );
-    response.headers.set("Access-Control-Allow-Origin", "*");
-    return response;
-  }
+    if (url.pathname === "/api/deeds" && request.method === "GET") {
+      if (!env.DEEDS_DB) {
+        const response = responseWithMessage(
+          "Database binding missing. Configure DEEDS_DB.",
+          500,
+        );
+        response.headers.set("Access-Control-Allow-Origin", "*");
+        return response;
+      }
 
-  try {
-    const category = url.searchParams.get("category");
+      try {
+        const statusParam = url.searchParams.get("status");
+        const normalizedStatus =
+          typeof statusParam === "string"
+            ? statusParam.trim().toLowerCase()
+            : "";
+        const allowedStatuses = new Map([
+          ["pending", "pending"],
+          ["verified", "verified"],
+        ]);
 
-    let query = `
-      SELECT id, title, category, description, verification, reward, status
-      FROM deeds
-      WHERE status = 'active'
-    `;
-    const params = [];
+        const whereClauses = [];
+        const params = [];
 
-    if (category) {
-      query += " AND category = ?";
-      params.push(category);
+        if (allowedStatuses.has(normalizedStatus)) {
+          whereClauses.push("status = ?1");
+          params.push(allowedStatuses.get(normalizedStatus));
+        } else {
+          // Default to returning verified deeds for public listings.
+          whereClauses.push("status = 'verified'");
+        }
+
+        let query = `
+          SELECT id, user_id, title, proof_url, status, created_at
+          FROM deeds
+        `;
+
+        if (whereClauses.length > 0) {
+          query += ` WHERE ${whereClauses.join(" AND ")}`;
+        }
+
+        query += " ORDER BY datetime(created_at) DESC;";
+
+        const statement = env.DEEDS_DB.prepare(query);
+        const { results } = params.length
+          ? await statement.bind(...params).all()
+          : await statement.all();
+
+        const response = Response.json(results);
+        response.headers.set("Access-Control-Allow-Origin", "*");
+        return response;
+      } catch (error) {
+        console.error("Failed to load deeds", error);
+        const response = responseWithMessage(
+          "Unable to load deeds list at this time.",
+          500,
+        );
+        response.headers.set("Access-Control-Allow-Origin", "*");
+        return response;
+      }
     }
 
-    query += " ORDER BY reward DESC;";
-
-    const { results } = await env.DEEDS_DB.prepare(query)
-      .bind(...params)
-      .all();
-
-    const response = Response.json(results);
-    response.headers.set("Access-Control-Allow-Origin", "*");
-    return response;
-  } catch (error) {
-    console.error("Failed to load deeds", error);
-    const response = responseWithMessage(
-      "Unable to load deeds list at this time.",
-      500
-    );
-    response.headers.set("Access-Control-Allow-Origin", "*");
-    return response;
-  }
-}
-
-    
     if (url.pathname === "/api/deeds" && request.method === "POST") {
       const response = await handleCreateDeed(request, env);
       response.headers.set("Access-Control-Allow-Origin", "*");
