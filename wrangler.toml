@@ -2,9 +2,10 @@ name = "deeds-app"
 main = "functions/_worker.js"
 compatibility_date = "2023-10-23"
 
-[assets]
-binding = "ASSETS"
-directory = "./public"
+[site]
+bucket = "./public"          # folder with index.html, choose.html, etc.
+include = ["**/*"]
+
 
 [[d1_databases]]
 binding = "DEEDS_DB"
