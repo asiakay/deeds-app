@@ -556,6 +556,52 @@ export default {
       return response;
     }
 
+if (url.pathname === "/api/deeds" && request.method === "GET") {
+  if (!env.DEEDS_DB) {
+    const response = responseWithMessage(
+      "Database binding missing. Configure DEEDS_DB.",
+      500
+    );
+    response.headers.set("Access-Control-Allow-Origin", "*");
+    return response;
+  }
+
+  try {
+    const category = url.searchParams.get("category");
+
+    let query = `
+      SELECT id, title, category, description, verification, reward, status
+      FROM deeds
+      WHERE status = 'active'
+    `;
+    const params = [];
+
+    if (category) {
+      query += " AND category = ?";
+      params.push(category);
+    }
+
+    query += " ORDER BY reward DESC;";
+
+    const { results } = await env.DEEDS_DB.prepare(query)
+      .bind(...params)
+      .all();
+
+    const response = Response.json(results);
+    response.headers.set("Access-Control-Allow-Origin", "*");
+    return response;
+  } catch (error) {
+    console.error("Failed to load deeds", error);
+    const response = responseWithMessage(
+      "Unable to load deeds list at this time.",
+      500
+    );
+    response.headers.set("Access-Control-Allow-Origin", "*");
+    return response;
+  }
+}
+
+    
     if (url.pathname === "/api/deeds" && request.method === "POST") {
       const response = await handleCreateDeed(request, env);
       response.headers.set("Access-Control-Allow-Origin", "*");
