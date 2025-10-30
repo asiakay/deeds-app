@@ -659,37 +659,48 @@ export default {
       return response;
     }
 
-    if (url.pathname === "/api/leaderboard" && request.method === "GET") {
-      if (!env.DEEDS_DB) {
-        const response = responseWithMessage(
-          "Database binding missing. Configure DEEDS_DB.",
-          500,
-        );
-        response.headers.set("Access-Control-Allow-Origin", "*");
-        return response;
-      }
 
-      try {
-        const results = await env.DEEDS_DB.prepare(
-          `SELECT name, credits
-           FROM users
-           ORDER BY credits DESC
-           LIMIT 10`,
-        ).all();
 
-        const response = Response.json(results.results || []);
-        response.headers.set("Access-Control-Allow-Origin", "*");
-        return response;
-      } catch (error) {
-        console.error("Failed to load leaderboard", error);
-        const response = responseWithMessage(
-          "Unable to load leaderboard at this time.",
-          500,
-        );
-        response.headers.set("Access-Control-Allow-Origin", "*");
-        return response;
-      }
-    }
+if (url.pathname === "/api/leaderboard" && request.method === "GET") {
+  if (!env.DEEDS_DB) {
+    const response = responseWithMessage(
+      "Database binding missing. Configure DEEDS_DB.",
+      500,
+    );
+    response.headers.set("Access-Control-Allow-Origin", "*");
+    return response;
+  }
+
+  try {
+    const results = await env.DEEDS_DB.prepare(`
+      SELECT 
+        u.id AS user_id,
+        u.name AS user_name,
+        u.region,
+        COUNT(d.id) AS deeds_completed,
+        COALESCE(SUM(d.credits), 0) AS total_credits
+      FROM users u
+      LEFT JOIN deeds d 
+        ON u.id = d.user_id 
+        AND d.verified = 1
+      GROUP BY u.id, u.name, u.region
+      ORDER BY total_credits DESC, deeds_completed DESC
+      LIMIT 10;
+    `).all();
+
+    const response = Response.json(results.results || []);
+    response.headers.set("Access-Control-Allow-Origin", "*");
+    return response;
+  } catch (error) {
+    console.error("Failed to load leaderboard", error);
+    const response = responseWithMessage(
+      "Unable to load leaderboard at this time.",
+      500,
+    );
+    response.headers.set("Access-Control-Allow-Origin", "*");
+    return response;
+  }
+}
 
     if (env.ASSETS) {
       let assetRequest = request;
