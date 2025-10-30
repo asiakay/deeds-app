@@ -129,6 +129,102 @@
                   proves the deed happened.
                 </p>
               </div>
+              <div class="grid gap-2">
+                <label
+                  class="text-sm font-medium text-slate-700"
+                  for="deedDescription"
+                  >What did you do?</label
+                >
+                <textarea
+                  id="deedDescription"
+                  name="description"
+                  rows="4"
+                  placeholder="Include who you supported and what changed because of your effort."
+                  class="rounded-lg border border-slate-200 px-3 py-2 text-base shadow-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
+                ></textarea>
+                <p class="text-xs text-slate-500">
+                  This helps the block captain celebrate your impact in the
+                  community feed.
+                </p>
+              </div>
+              <div class="grid gap-4 lg:grid-cols-3">
+                <div class="grid gap-2">
+                  <label
+                    class="text-sm font-medium text-slate-700"
+                    for="deedDate"
+                    >Date completed</label
+                  >
+                  <input
+                    id="deedDate"
+                    type="date"
+                    name="deed_date"
+                    class="rounded-lg border border-slate-200 px-3 py-2 text-base shadow-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
+                  />
+                  <p class="text-xs text-slate-500">
+                    Leave blank if you finished it today.
+                  </p>
+                </div>
+                <div class="grid gap-2">
+                  <label
+                    class="text-sm font-medium text-slate-700"
+                    for="deedDuration"
+                    >Time invested</label
+                  >
+                  <select
+                    id="deedDuration"
+                    name="duration"
+                    class="rounded-lg border border-slate-200 px-3 py-2 text-base shadow-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
+                  >
+                    <option value="">Select one</option>
+                    <option value="Under 30 minutes">Under 30 minutes</option>
+                    <option value="30-60 minutes">30-60 minutes</option>
+                    <option value="1-2 hours">1-2 hours</option>
+                    <option value="Half day">Half day</option>
+                  </select>
+                  <p class="text-xs text-slate-500">
+                    Helps us spot quick wins for neighbors with limited time.
+                  </p>
+                </div>
+                <div class="grid gap-2">
+                  <label
+                    class="text-sm font-medium text-slate-700"
+                    for="deedImpact"
+                    >Impact area</label
+                  >
+                  <select
+                    id="deedImpact"
+                    name="impact"
+                    class="rounded-lg border border-slate-200 px-3 py-2 text-base shadow-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
+                  >
+                    <option value="">Choose an area</option>
+                    <option value="Food access">Food access</option>
+                    <option value="Housing">Housing</option>
+                    <option value="Education">Education</option>
+                    <option value="Environment">Environment</option>
+                    <option value="Community care">Community care</option>
+                  </select>
+                  <p class="text-xs text-slate-500">
+                    Guides which leaderboard badges light up after verification.
+                  </p>
+                </div>
+              </div>
+              <div class="grid gap-2">
+                <label
+                  class="text-sm font-medium text-slate-700"
+                  for="deedPartners"
+                  >Partners or organizations</label
+                >
+                <textarea
+                  id="deedPartners"
+                  name="partners"
+                  rows="2"
+                  placeholder="List any neighbors, nonprofits, or sponsors who teamed up with you."
+                  class="rounded-lg border border-slate-200 px-3 py-2 text-base shadow-sm focus:border-teal-500 focus:ring-2 focus:ring-teal-200"
+                ></textarea>
+                <p class="text-xs text-slate-500">
+                  We’ll highlight them when we share your deed with the block.
+                </p>
+              </div>
             </fieldset>
             <div
               class="min-h-[1.25rem] text-sm text-slate-600"

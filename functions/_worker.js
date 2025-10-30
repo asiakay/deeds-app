@@ -267,12 +267,18 @@ async function handleCreateDeed(request, env) {
     return responseWithMessage("A deed title is required.", 400);
   }
 
-  const proofUrl = sanitizeText(
-    payload.proof_url ?? payload.proofUrl ?? payload.proof ?? "",
-  );
-  if (!proofUrl) {
+  const proofUrlInput =
+    payload.proof_url ?? payload.proofUrl ?? payload.proof ?? "";
+  const normalizedProofUrl = normalizeUrl(proofUrlInput);
+  if (normalizedProofUrl === "") {
     return responseWithMessage(
       "A proof URL is required to submit your deed.",
+      400,
+    );
+  }
+  if (normalizedProofUrl === null) {
+    return responseWithMessage(
+      "Please provide a valid proof link, including http:// or https://.",
       400,
     );
   }
@@ -367,7 +373,7 @@ async function handleCreateDeed(request, env) {
       .bind(
         userId,
         title,
-        proofUrl,
+        normalizedProofUrl,
         deedDate,
         duration,
         impactArea,
