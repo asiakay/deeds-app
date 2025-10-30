@@ -1,10 +1,34 @@
-INSERT INTO users (id, name, email, password_hash, credits)
-VALUES (1, 'Test User', 'test@example.com', 'hashedpassword', 0)
+INSERT INTO users (
+  id,
+  name,
+  email,
+  password_hash,
+  credits,
+  sector,
+  region,
+  verification_status,
+  created_at
+)
+VALUES (
+  1,
+  'Test User',
+  'test@example.com',
+  'hashedpassword',
+  0,
+  'Community Services',
+  'Caribbean',
+  'pending',
+  datetime('now')
+)
 ON CONFLICT(id) DO UPDATE SET
   name=excluded.name,
   email=excluded.email,
   password_hash=excluded.password_hash,
-  credits=excluded.credits;
+  credits=excluded.credits,
+  sector=excluded.sector,
+  region=excluded.region,
+  verification_status=excluded.verification_status,
+  created_at=excluded.created_at;
 
 INSERT INTO deeds (user_id, title, proof_url, status)
 VALUES (1, 'Delivered groceries', 'https://photos.app/test.jpg', 'pending')

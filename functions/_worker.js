@@ -120,6 +120,12 @@ async function handleSignup(request, env) {
     .trim()
     .toLowerCase();
   const password = String(payload.password || "");
+  const sectorInput = sanitizeText(payload.sector ?? payload.user_sector);
+  const regionInput = sanitizeText(payload.region ?? payload.user_region);
+
+  const sector = sectorInput || null;
+  const region = regionInput || null;
+  const verificationStatus = "pending";
 
   if (!name || !email || !password) {
     return responseWithMessage("Name, email, and password are required.", 400);
@@ -150,15 +156,26 @@ async function handleSignup(request, env) {
     const createdAt = new Date().toISOString();
 
     const result = await env.DEEDS_DB.prepare(
-      "INSERT INTO users (name, email, password_hash, created_at) VALUES (?1, ?2, ?3, ?4)",
+      "INSERT INTO users (name, email, password_hash, sector, region, verification_status, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
     )
-      .bind(name, email, hashedPassword, createdAt)
+      .bind(
+        name,
+        email,
+        hashedPassword,
+        sector,
+        region,
+        verificationStatus,
+        createdAt,
+      )
       .run();
 
     const profile = {
       id: result.meta.last_row_id,
       name,
       email,
+      sector,
+      region,
+      verificationStatus,
       createdAt,
     };
 
@@ -200,7 +217,7 @@ async function handleLogin(request, env) {
 
   try {
     const user = await env.DEEDS_DB.prepare(
-      "SELECT id, name, email, password_hash, created_at FROM users WHERE email = ?1",
+      "SELECT id, name, email, password_hash, sector, region, verification_status, created_at FROM users WHERE email = ?1",
     )
       .bind(email)
       .first();
@@ -228,6 +245,9 @@ async function handleLogin(request, env) {
       id: user.id,
       name: user.name,
       email: user.email,
+      sector: user.sector,
+      region: user.region,
+      verificationStatus: user.verification_status,
       createdAt: user.created_at,
     };
 
