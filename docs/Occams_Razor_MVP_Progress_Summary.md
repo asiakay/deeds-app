@@ -35,7 +35,7 @@ Deliver a functional proof-of-concept demonstrating:
 —
 
 ## 🔧 Current Tasks
-- [ ] Complete `/api/deeds` route with D1 storage  
+- [x] Complete `/api/deeds` route with D1 storage
 - [ ] Update leaderboard UI to fetch live data  
 - [ ] Add verification route and credit counter  
 - [ ] Integrate visual state badges (pending/verified)  

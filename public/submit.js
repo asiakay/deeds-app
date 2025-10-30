@@ -49,34 +49,64 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    const titleInput = document.getElementById("deedTitle");
-    const proofInput = document.getElementById("proofUrl");
-    const title = titleInput ? titleInput.value.trim() : "";
-    const proof_url = proofInput ? proofInput.value.trim() : "";
+    const submitButton = form.querySelector('button[type="submit"]');
+    const formData = new FormData(form);
+    const title = String(formData.get("title") || "").trim();
+    const proofUrl = String(formData.get("proof_url") || "").trim();
 
-    if (!title || !proof_url) {
-      updateFeedback("Please complete every field before submitting.", "error");
+    if (!title || !proofUrl) {
+      updateFeedback(
+        "Please complete the title and proof link before submitting.",
+        "error",
+      );
       return;
     }
 
+    const payload = {
+      user_id: profile.id,
+      title,
+      proof_url: proofUrl,
+    };
+
+    const optionalFields = {
+      description: formData.get("description"),
+      deed_date: formData.get("deed_date"),
+      duration: formData.get("duration"),
+      impact: formData.get("impact"),
+      partners: formData.get("partners"),
+    };
+
+    Object.entries(optionalFields).forEach(([key, value]) => {
+      if (typeof value !== "string") {
+        return;
+      }
+      const trimmed = value.trim();
+      if (trimmed) {
+        payload[key] = trimmed;
+      }
+    });
+
     updateFeedback("Submitting your deed…", "info");
+
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.dataset.loading = "true";
+    }
 
     try {
       const res = await fetch("/api/deeds", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: profile.id, title, proof_url }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.success) {
         const message = data.message || "We couldn't save your deed right now.";
-        alert(`Error: ${message}`);
         updateFeedback(message, "error");
         return;
       }
 
-      alert("Deed submitted successfully!");
       form.reset();
       updateFeedback(
         "Your deed was submitted. We'll verify it shortly!",
@@ -84,11 +114,15 @@ document.addEventListener("DOMContentLoaded", () => {
       );
     } catch (error) {
       console.error("Failed to submit deed", error);
-      alert("Error: We couldn't reach the server. Please try again.");
       updateFeedback(
         "We couldn't reach the server. Please check your connection and try again.",
         "error",
       );
+    } finally {
+      if (submitButton) {
+        submitButton.disabled = false;
+        delete submitButton.dataset.loading;
+      }
     }
   });
 });
