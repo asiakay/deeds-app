@@ -659,48 +659,55 @@ export default {
       return response;
     }
 
+    if (url.pathname === "/api/leaderboard" && request.method === "GET") {
+      if (!env.DEEDS_DB) {
+        const response = responseWithMessage(
+          "Database binding missing. Configure DEEDS_DB.",
+          500,
+        );
+        response.headers.set("Access-Control-Allow-Origin", "*");
+        return response;
+      }
 
-
-if (url.pathname === "/api/leaderboard" && request.method === "GET") {
-  if (!env.DEEDS_DB) {
-    const response = responseWithMessage(
-      "Database binding missing. Configure DEEDS_DB.",
-      500,
-    );
-    response.headers.set("Access-Control-Allow-Origin", "*");
-    return response;
-  }
-
-  try {
-    const results = await env.DEEDS_DB.prepare(`
-      SELECT 
+      try {
+        const results = await env.DEEDS_DB.prepare(
+          `
+      SELECT
         u.id AS user_id,
-        u.name AS user_name,
+        u.name AS name,
         u.region,
-        COUNT(d.id) AS deeds_completed,
-        COALESCE(SUM(d.credits), 0) AS total_credits
+        COUNT(d.id) AS deed_count,
+        COALESCE(u.credits, COUNT(d.id)) AS credits
       FROM users u
-      LEFT JOIN deeds d 
-        ON u.id = d.user_id 
-        AND d.verified = 1
+      LEFT JOIN deeds d
+        ON u.id = d.user_id
+        AND d.status = 'verified'
       GROUP BY u.id, u.name, u.region
-      ORDER BY total_credits DESC, deeds_completed DESC
+      ORDER BY credits DESC, deed_count DESC, name ASC
       LIMIT 10;
-    `).all();
+    `,
+        ).all();
 
-    const response = Response.json(results.results || []);
-    response.headers.set("Access-Control-Allow-Origin", "*");
-    return response;
-  } catch (error) {
-    console.error("Failed to load leaderboard", error);
-    const response = responseWithMessage(
-      "Unable to load leaderboard at this time.",
-      500,
-    );
-    response.headers.set("Access-Control-Allow-Origin", "*");
-    return response;
-  }
-}
+        const leaderboard = (results.results || []).map((row) => ({
+          name: row.name ?? row.user_name ?? "Neighbor",
+          credits: Number(row.credits ?? row.deed_count ?? 0),
+          deedCount: Number(row.deed_count ?? row.deeds_completed ?? 0),
+          region: row.region ?? null,
+        }));
+
+        const response = Response.json(leaderboard);
+        response.headers.set("Access-Control-Allow-Origin", "*");
+        return response;
+      } catch (error) {
+        console.error("Failed to load leaderboard", error);
+        const response = responseWithMessage(
+          "Unable to load leaderboard at this time.",
+          500,
+        );
+        response.headers.set("Access-Control-Allow-Origin", "*");
+        return response;
+      }
+    }
 
     if (env.ASSETS) {
       let assetRequest = request;
