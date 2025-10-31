@@ -253,14 +253,30 @@ async function loadLeaderboard() {
     }
 
     const data = await response.json();
+    const entries = Array.isArray(data) ? data : [];
     tbody.innerHTML = "";
 
-    data.forEach((user, index) => {
+    entries.forEach((user, index) => {
       const row = document.createElement("tr");
+      const name = user?.name || user?.user_name || "—";
+      const credits = Number(
+        user?.credits ?? user?.deedCount ?? user?.deeds_completed ?? 0,
+      );
+      const deedCount = Number(
+        user?.deedCount ?? user?.deeds_completed ?? user?.deeds ?? 0,
+      );
+      const deedLabel = deedCount === 1 ? "deed" : "deeds";
+      const deedMeta = deedCount
+        ? `<div class="mt-0.5 text-xs text-slate-400">${deedCount} ${deedLabel} verified</div>`
+        : "";
+
       row.innerHTML = `
         <td class="px-4 py-3 font-medium text-slate-600">${index + 1}</td>
-        <td class="px-4 py-3">${user.name || "—"}</td>
-        <td class="px-4 py-3 text-right">${user.credits ?? 0}</td>`;
+        <td class="px-4 py-3">${name}</td>
+        <td class="px-4 py-3 text-right">
+          <div class="text-sm font-semibold text-slate-700">${credits}</div>
+          ${deedMeta}
+        </td>`;
       tbody.appendChild(row);
     });
 
