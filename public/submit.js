@@ -68,24 +68,6 @@ document.addEventListener("DOMContentLoaded", () => {
       proof_url: proofUrl,
     };
 
-    const optionalFields = {
-      description: formData.get("description"),
-      deed_date: formData.get("deed_date"),
-      duration: formData.get("duration"),
-      impact: formData.get("impact"),
-      partners: formData.get("partners"),
-    };
-
-    Object.entries(optionalFields).forEach(([key, value]) => {
-      if (typeof value !== "string") {
-        return;
-      }
-      const trimmed = value.trim();
-      if (trimmed) {
-        payload[key] = trimmed;
-      }
-    });
-
     updateFeedback("Submitting your deed…", "info");
 
     if (submitButton) {
