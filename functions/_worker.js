@@ -1,18 +1,3 @@
-const DURATION_OPTIONS = [
-  "Under 30 minutes",
-  "30-60 minutes",
-  "1-2 hours",
-  "Half day",
-];
-
-const IMPACT_OPTIONS = [
-  "Food access",
-  "Housing",
-  "Education",
-  "Environment",
-  "Community care",
-];
-
 async function parseJsonBody(request) {
   try {
     return await request.json();
@@ -39,43 +24,9 @@ function normalizePathname(pathname) {
   return pathname.replace(/\/+$/, "");
 }
 
-function normalizeOption(value, options) {
-  if (!value) return null;
-  const trimmed = String(value).trim();
-  if (!trimmed) return null;
-
-  const match = options.find(
-    (option) => option.toLowerCase() === trimmed.toLowerCase(),
-  );
-  return match || null;
-}
-
 function sanitizeText(value) {
   if (!value && value !== 0) return "";
   return String(value).replace(/\s+/g, " ").trim();
-}
-
-function sanitizePartners(value) {
-  const sanitized = sanitizeText(value);
-  if (!sanitized) return "";
-  return sanitized
-    .split(/[,;\n]/)
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .join(", ");
-}
-
-function normalizeDeedDate(value) {
-  const sanitized = sanitizeText(value);
-  if (!sanitized) return null;
-  const match = sanitized.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return null;
-  const [, year, month, day] = match;
-  const date = new Date(`${year}-${month}-${day}T00:00:00Z`);
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-  return `${year}-${month}-${day}`;
 }
 
 function normalizeUrl(value) {
@@ -303,55 +254,6 @@ async function handleCreateDeed(request, env) {
     );
   }
 
-  const description = sanitizeText(
-    payload.description ?? payload.deed_description ?? payload.details,
-  );
-
-  let deedDate = null;
-  const deedDateInput = sanitizeText(
-    payload.deed_date ?? payload.date ?? payload.performed_on,
-  );
-  if (deedDateInput) {
-    const normalized = normalizeDeedDate(deedDateInput);
-    if (!normalized) {
-      return responseWithMessage(
-        "Please provide dates in YYYY-MM-DD format.",
-        400,
-      );
-    }
-    deedDate = normalized;
-  }
-
-  let duration = null;
-  const durationInput =
-    payload.duration ?? payload.time_spent ?? payload.timeSpent;
-  if (durationInput) {
-    duration = normalizeOption(durationInput, DURATION_OPTIONS);
-    if (!duration) {
-      return responseWithMessage(
-        "Please choose one of the supported duration options.",
-        400,
-      );
-    }
-  }
-
-  let impactArea = null;
-  const impactInput =
-    payload.impact ?? payload.impact_area ?? payload.impactArea;
-  if (impactInput) {
-    impactArea = normalizeOption(impactInput, IMPACT_OPTIONS);
-    if (!impactArea) {
-      return responseWithMessage(
-        "Please choose one of the supported impact areas.",
-        400,
-      );
-    }
-  }
-
-  const partners = sanitizePartners(
-    payload.partners ?? payload.collaborators ?? payload.team,
-  );
-
   const db = env.DEEDS_DB;
 
   if (!db) {
@@ -380,27 +282,12 @@ async function handleCreateDeed(request, env) {
         title,
         proof_url,
         status,
-        created_at,
-        deed_date,
-        duration,
-        impact_area,
-        description,
-        partners
-      ) VALUES (?1, ?2, ?3, 'pending', datetime('now'), ?4, ?5, ?6, ?7, ?8)`,
+        credits,
+        created_at
+      ) VALUES (?1, ?2, ?3, 'pending', 0, datetime('now'))`,
     );
 
-    const result = await stmt
-      .bind(
-        userId,
-        title,
-        normalizedProofUrl,
-        deedDate,
-        duration,
-        impactArea,
-        description || null,
-        partners || null,
-      )
-      .run();
+    const result = await stmt.bind(userId, title, normalizedProofUrl).run();
 
     return Response.json(
       { success: true, deed_id: result.meta.last_row_id },
@@ -441,7 +328,7 @@ async function handleVerifyDeed(request, env) {
 
   try {
     const updateResult = await env.DEEDS_DB.prepare(
-      "UPDATE deeds SET status = 'verified' WHERE id = ?1",
+      "UPDATE deeds SET status = 'verified', credits = 1 WHERE id = ?1",
     )
       .bind(deedId)
       .run();
@@ -619,7 +506,7 @@ export default {
         }
 
         let query = `
-      SELECT id, user_id, title, proof_url, status, created_at
+      SELECT id, user_id, title, proof_url, status, credits, created_at
       FROM deeds
     `;
 
