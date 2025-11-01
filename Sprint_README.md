@@ -32,6 +32,10 @@ All endpoints respond with JSON and include permissive CORS headers for `GET`,
 | ------ | ------------------ | ----------- |
 | `POST` | `/api/auth/signup` | Creates a new user in D1. Requires `name`, `email`, and `password` fields in the JSON body. Returns a success message and the persisted `profile` payload. |
 | `POST` | `/api/auth/login`  | Authenticates an existing user. Requires `email` and `password` fields in the JSON body. Accepts legacy plain-text password hashes and upgrades them to hashed values. Returns a success message and the matching `profile` payload. |
+| `GET` | `/api/deeds` | Lists deeds stored in D1. Accepts an optional `status` query parameter (`pending`, `verified`, or `all`) and defaults to verified deeds. |
+| `POST` | `/api/deeds` | Persists a new deed submission with proof metadata and awards pending credits until verification. |
+| `POST` | `/api/verify` | Confirms a deed submission, updates its status, and issues credits to the associated user. |
+| `GET` | `/api/leaderboard` | Aggregates verified deeds and credits to surface the top neighbors for the leaderboard UI. |
 
 Unauthenticated requests to the routes above receive an explanatory `message`
 with an appropriate HTTP status code (`400`, `401`, `404`, or `409`). Requests to
@@ -68,3 +72,16 @@ behaviour:
 These hooks allow the static pages to feel dynamic without requiring a separate
 client framework, while the Worker remains responsible for the authoritative
 profile data in D1.
+
+## Frontend pages
+
+| File | Description |
+| ---- | ----------- |
+| `public/index.html` | Landing page introducing the Deeds initiative and linking into sign-up and login flows. |
+| `public/login.html` | Authentication form that posts to `/api/auth/login` and saves the returned profile. |
+| `public/dashboard.html` | Authenticated overview showing profile details, progress, and quick links into deed actions. |
+| `public/choose.html` | Guided deed selection page that lets neighbors pick a template before submitting proof. |
+| `public/submit.html` | Proof submission form that calls `/api/deeds` to store a new deed record. |
+| `public/verify.html` | Admin-facing verification screen that promotes deeds to verified via `/api/verify`. |
+| `public/leaderboard.html` | Public leaderboard that displays top neighbors using the `/api/leaderboard` data. |
+| `public/profile.html` | Profile snapshot view backed by the cached profile data returned from the auth endpoints. |
