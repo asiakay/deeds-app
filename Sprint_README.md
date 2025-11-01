@@ -9,7 +9,7 @@ from Workers Sites.
 ## Project links
 
 - **Placeholder landing page:** [public/index.html](./public/index.html)
-- **GitHub repository:** [Occams-Labs/deeds-app](https://github.com/Occams-Labs/deeds-app)
+- **GitHub repository:** [asiakay/deeds-app](https://github.com/asiakay/deeds-app)
 
 ## Architecture overview
 

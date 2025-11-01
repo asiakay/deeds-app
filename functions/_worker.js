@@ -453,6 +453,23 @@ const DEFAULT_HTML = `<!doctype html>
         transform: translateY(-2px);
         box-shadow: 0 18px 36px -20px rgba(45, 212, 191, 1);
       }
+      .links {
+        margin-top: 2rem;
+        display: flex;
+        justify-content: center;
+        gap: 1.25rem;
+        flex-wrap: wrap;
+        font-size: 0.95rem;
+      }
+      .links a {
+        color: #22d3ee;
+        text-decoration: none;
+        font-weight: 600;
+        transition: color 120ms ease;
+      }
+      .links a:hover {
+        color: #5eead4;
+      }
     </style>
   </head>
   <body>
@@ -461,6 +478,9 @@ const DEFAULT_HTML = `<!doctype html>
       <p>Our updated experience is deploying now.</p>
       <p>Refresh in a moment to see the new landing page.</p>
       <a class="cta" href="/" rel="nofollow">Refresh</a>
+      <p class="links">
+        <a href="https://github.com/asiakay/deeds-app" target="_blank" rel="noopener">View on GitHub</a>
+      </p>
     </main>
   </body>
 </html>`;
