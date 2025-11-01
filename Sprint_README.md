@@ -6,6 +6,11 @@ of onboarding tasks. The current implementation stores all profile data in a
 [D1](https://developers.cloudflare.com/d1/) database and serves a static frontend
 from Workers Sites.
 
+## Project links
+
+- **Placeholder landing page:** [public/index.html](./public/index.html)
+- **GitHub repository:** [Occams-Labs/deeds-app](https://github.com/Occams-Labs/deeds-app)
+
 ## Architecture overview
 
 - **Cloudflare Worker** (`functions/_worker.js`) handles HTTP routing, authentication
