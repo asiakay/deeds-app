@@ -128,6 +128,8 @@ async function handleSignup(request, env) {
       region,
       verificationStatus,
       createdAt,
+      credits: 0,
+      completed: 0,
     };
 
     return responseWithMessage(
@@ -168,7 +170,21 @@ async function handleLogin(request, env) {
 
   try {
     const user = await env.DEEDS_DB.prepare(
-      "SELECT id, name, email, password_hash, sector, region, verification_status, created_at FROM users WHERE email = ?1",
+      `SELECT
+        u.id,
+        u.name,
+        u.email,
+        u.password_hash,
+        u.sector,
+        u.region,
+        u.verification_status,
+        u.created_at,
+        u.credits,
+        COALESCE(SUM(CASE WHEN d.status = 'verified' THEN 1 ELSE 0 END), 0) AS completed
+      FROM users u
+      LEFT JOIN deeds d ON d.user_id = u.id
+      WHERE u.email = ?1
+      GROUP BY u.id`,
     )
       .bind(email)
       .first();
@@ -192,6 +208,11 @@ async function handleLogin(request, env) {
       return responseWithMessage("Invalid email or password.", 401);
     }
 
+    const credits = Number(user.credits ?? 0);
+    const completed = Number(
+      (user.completed != null ? user.completed : undefined) ?? credits,
+    );
+
     const profile = {
       id: user.id,
       name: user.name,
@@ -200,6 +221,8 @@ async function handleLogin(request, env) {
       region: user.region,
       verificationStatus: user.verification_status,
       createdAt: user.created_at,
+      credits,
+      completed,
     };
 
     const greetingName = user.name?.split(" ")[0] || user.email;

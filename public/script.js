@@ -223,8 +223,12 @@ function hydrateDashboard(profile) {
       profile.createdAt || profile.created,
     );
   }
-  if (completedTarget && profile.completed != null) {
-    completedTarget.textContent = profile.completed;
+  if (completedTarget) {
+    const completedValue =
+      profile.completed != null ? profile.completed : profile.credits;
+    if (completedValue != null) {
+      completedTarget.textContent = completedValue;
+    }
   }
   if (initialsTarget) {
     initialsTarget.textContent = getInitials(profile.name || profile.email);
