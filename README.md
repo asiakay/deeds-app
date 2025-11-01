@@ -23,5 +23,29 @@ scripts/         # Utility scripts used for deployment helpers
 migrations/      # D1 database schema migrations
 ```
 
+## Worker API endpoints
+
+| Method | Path | Description |
+| ------ | ---- | ----------- |
+| `POST` | `/api/auth/signup` | Registers a new neighbor profile, hashes the provided password, stores the record in D1, and returns the persisted profile payload. |
+| `POST` | `/api/auth/login` | Authenticates an existing profile by verifying the submitted password, automatically upgrading legacy hashes, and responding with the stored profile. |
+| `GET` | `/api/deeds` | Lists deeds from D1. Supports an optional `status` query parameter (`pending`, `verified`, or `all`) and defaults to verified deeds. |
+| `POST` | `/api/deeds` | Accepts deed submissions with proof metadata, persists them, and returns the created deed entry. |
+| `POST` | `/api/verify` | Marks an existing deed as verified, awarding credits and updating the submission status. |
+| `GET` | `/api/leaderboard` | Returns the top verified neighbors along with their credit totals for the leaderboard view. |
+
+## Frontend pages
+
+| Path | Purpose |
+| ---- | ------- |
+| `public/index.html` | Welcome page that introduces the initiative and links visitors into the onboarding flow. |
+| `public/login.html` | Email/password login form that uses the Worker API to authenticate a stored profile. |
+| `public/dashboard.html` | Post-login overview showing profile details, recent deed activity, and shortcuts into the deed flow. |
+| `public/choose.html` | Guided selection screen for picking a deed template before submitting proof. |
+| `public/submit.html` | Submission form that captures proof details and posts them to `/api/deeds`. |
+| `public/verify.html` | Verification interface used by administrators to confirm deeds via `/api/verify`. |
+| `public/leaderboard.html` | Public leaderboard displaying the top verified neighbors using data from `/api/leaderboard`. |
+| `public/profile.html` | Profile summary page that surfaces stored account information from local cache. |
+
 ## Contributing
 Please open an issue or pull request on GitHub if you encounter bugs or have improvements to share.
