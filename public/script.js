@@ -36,6 +36,7 @@ const PROTECTED_PAGES = new Set([
   "dashboard.html",
   "submit.html",
   "leaderboard.html",
+  "verify.html",
 ]);
 
 function isProfileExpired(profile) {
