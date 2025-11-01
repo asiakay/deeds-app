@@ -9,8 +9,56 @@ const toneClassMap = {
   info: "text-slate-600",
 };
 
+let sessionProfile = null;
+
+function normalizeStoredProfile(rawProfile) {
+  if (!rawProfile || typeof rawProfile !== "object") {
+    return null;
+  }
+
+  const normalized = { ...rawProfile };
+
+  const adminFlag =
+    rawProfile.isAdmin != null
+      ? !!rawProfile.isAdmin
+      : rawProfile.is_admin != null
+        ? !!rawProfile.is_admin
+        : false;
+
+  const sessionToken =
+    typeof rawProfile.sessionToken === "string" && rawProfile.sessionToken
+      ? rawProfile.sessionToken
+      : typeof rawProfile.token === "string" && rawProfile.token
+        ? rawProfile.token
+        : null;
+
+  normalized.isAdmin = adminFlag;
+  normalized.is_admin =
+    rawProfile.is_admin != null ? !!rawProfile.is_admin : adminFlag;
+  normalized.sessionToken = sessionToken;
+  if (sessionToken && !normalized.token) {
+    normalized.token = sessionToken;
+  }
+
+  return normalized;
+}
+
+function setSessionProfile(profile) {
+  sessionProfile = profile;
+  if (typeof window !== "undefined") {
+    window.deedsSessionProfile = profile;
+  }
+}
+
 function saveProfile(profile) {
-  localStorage.setItem("deeds.profile", JSON.stringify(profile));
+  const normalized = normalizeStoredProfile(profile);
+  if (!normalized) {
+    clearProfile();
+    return null;
+  }
+  localStorage.setItem("deeds.profile", JSON.stringify(normalized));
+  setSessionProfile(normalized);
+  return normalized;
 }
 
 function getProfile() {
@@ -19,7 +67,7 @@ function getProfile() {
     return null;
   }
   try {
-    return JSON.parse(data);
+    return normalizeStoredProfile(JSON.parse(data));
   } catch (error) {
     console.warn("Unable to parse cached profile", error);
     clearProfile();
@@ -29,6 +77,7 @@ function getProfile() {
 
 function clearProfile() {
   localStorage.removeItem("deeds.profile");
+  setSessionProfile(null);
 }
 
 const PROFILE_TTL_MS = 24 * 60 * 60 * 1000;
@@ -54,15 +103,16 @@ function hydrateUI(profile) {
 }
 
 const currentPage = window.location.pathname.split("/").pop();
-let sessionProfile = null;
 
 if (PROTECTED_PAGES.has(currentPage)) {
   const profile = getProfile();
-  if (!profile || isProfileExpired(profile)) {
+  if (!profile || isProfileExpired(profile) || !profile?.sessionToken) {
     clearProfile();
     window.location.href = "login.html";
+  } else if (currentPage === "verify.html" && !profile.isAdmin) {
+    window.location.href = "dashboard.html";
   } else {
-    sessionProfile = profile;
+    setSessionProfile(profile);
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", () => hydrateUI(profile));
     } else {
@@ -153,12 +203,10 @@ function attachAuthForms() {
         }
 
         if (result?.profile) {
-          const nextProfile = {
+          saveProfile({
             ...result.profile,
             timestamp: Date.now(),
-          };
-          saveProfile(nextProfile);
-          sessionProfile = nextProfile;
+          });
         }
 
         setMessage(messageElement, result?.message || "Success!", "success");
@@ -306,7 +354,7 @@ window.addEventListener("DOMContentLoaded", () => {
   if (!sessionProfile && PROTECTED_PAGES.has(currentPage)) {
     const profile = getProfile();
     if (profile && !isProfileExpired(profile)) {
-      sessionProfile = profile;
+      setSessionProfile(profile);
       hydrateUI(profile);
     }
   }

@@ -4,6 +4,66 @@ const toneClassMap = {
   info: "text-slate-600",
 };
 
+function normalizeProfile(rawProfile) {
+  if (!rawProfile || typeof rawProfile !== "object") {
+    return null;
+  }
+
+  const adminFlag =
+    rawProfile.isAdmin != null
+      ? !!rawProfile.isAdmin
+      : rawProfile.is_admin != null
+        ? !!rawProfile.is_admin
+        : false;
+
+  const sessionToken =
+    typeof rawProfile.sessionToken === "string" && rawProfile.sessionToken
+      ? rawProfile.sessionToken
+      : typeof rawProfile.token === "string" && rawProfile.token
+        ? rawProfile.token
+        : null;
+
+  return {
+    ...rawProfile,
+    isAdmin: adminFlag,
+    is_admin: rawProfile.is_admin != null ? !!rawProfile.is_admin : adminFlag,
+    sessionToken,
+  };
+}
+
+function getActiveProfile() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  if (window.deedsSessionProfile) {
+    return normalizeProfile(window.deedsSessionProfile);
+  }
+
+  const stored = window.localStorage?.getItem("deeds.profile");
+  if (!stored) {
+    return null;
+  }
+
+  try {
+    return normalizeProfile(JSON.parse(stored));
+  } catch (error) {
+    console.warn("Unable to parse stored admin profile", error);
+    return null;
+  }
+}
+
+let activeProfile = getActiveProfile();
+
+function requireAdminSession() {
+  activeProfile = getActiveProfile();
+  if (!activeProfile || !activeProfile.isAdmin || !activeProfile.sessionToken) {
+    setFlash("Administrator session required. Please log in again.", "error");
+    return false;
+  }
+  return true;
+}
+
 function setFlash(message, tone = "info") {
   const flash = document.querySelector('[data-role="flash"]');
   if (!flash) return;
@@ -121,6 +181,10 @@ function renderQueue(items) {
 }
 
 async function fetchQueue() {
+  if (!requireAdminSession()) {
+    return;
+  }
+
   const loading = document.querySelector('[data-role="loading"]');
   const emptyState = document.querySelector('[data-role="empty"]');
   const table = document.querySelector('[data-role="table"]');
@@ -171,6 +235,16 @@ async function verifyDeed(deedId, button) {
     return;
   }
 
+  if (!requireAdminSession()) {
+    return;
+  }
+
+  const token = activeProfile?.sessionToken;
+  if (!token) {
+    setFlash("Missing admin session token. Please sign in again.", "error");
+    return;
+  }
+
   const originalText = button.textContent;
   button.disabled = true;
   button.textContent = "Verifying…";
@@ -181,6 +255,7 @@ async function verifyDeed(deedId, button) {
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ deed_id: deedId }),
     });

@@ -40,6 +40,136 @@ function normalizeUrl(value) {
   }
 }
 
+function base64UrlEncode(input) {
+  const base64 = btoa(input)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+  return base64;
+}
+
+function base64UrlEncodeFromArrayBuffer(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 1) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return base64UrlEncode(binary);
+}
+
+function base64UrlDecodeToString(value) {
+  let input = String(value || "")
+    .replace(/-/g, "+")
+    .replace(/_/g, "/");
+  const pad = input.length % 4;
+  if (pad) {
+    input += "=".repeat(4 - pad);
+  }
+  return atob(input);
+}
+
+function base64UrlToUint8Array(value) {
+  const binary = base64UrlDecodeToString(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+async function createSessionToken(userId, isAdmin, secret) {
+  if (!secret) {
+    throw new Error("SESSION_SECRET is not configured");
+  }
+
+  const header = { alg: "HS256", typ: "JWT" };
+  const payload = {
+    sub: String(userId),
+    admin: !!isAdmin,
+    iat: Math.floor(Date.now() / 1000),
+  };
+
+  const encodedHeader = base64UrlEncode(JSON.stringify(header));
+  const encodedPayload = base64UrlEncode(JSON.stringify(payload));
+  const unsignedToken = `${encodedHeader}.${encodedPayload}`;
+
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    {
+      name: "HMAC",
+      hash: "SHA-256",
+    },
+    false,
+    ["sign"],
+  );
+
+  const signature = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    encoder.encode(unsignedToken),
+  );
+
+  const encodedSignature = base64UrlEncodeFromArrayBuffer(signature);
+  return `${unsignedToken}.${encodedSignature}`;
+}
+
+async function verifySessionToken(token, secret) {
+  if (!secret || !token) {
+    return null;
+  }
+
+  const parts = String(token).split(".");
+  if (parts.length !== 3) {
+    return null;
+  }
+
+  const [encodedHeader, encodedPayload, encodedSignature] = parts;
+  const unsignedToken = `${encodedHeader}.${encodedPayload}`;
+
+  try {
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      "raw",
+      encoder.encode(secret),
+      {
+        name: "HMAC",
+        hash: "SHA-256",
+      },
+      false,
+      ["verify"],
+    );
+
+    const signatureValid = await crypto.subtle.verify(
+      "HMAC",
+      key,
+      base64UrlToUint8Array(encodedSignature),
+      encoder.encode(unsignedToken),
+    );
+
+    if (!signatureValid) {
+      return null;
+    }
+
+    const payloadJson = base64UrlDecodeToString(encodedPayload);
+    const payload = JSON.parse(payloadJson);
+
+    const userId = Number(payload.sub);
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return null;
+    }
+
+    return {
+      userId,
+      isAdmin: !!payload.admin,
+    };
+  } catch (error) {
+    console.error("Failed to verify session token", error);
+    return null;
+  }
+}
+
 async function hashPassword(password) {
   const encoder = new TextEncoder();
   const data = encoder.encode(password);
@@ -57,6 +187,13 @@ async function handleSignup(request, env) {
   if (!env.DEEDS_DB) {
     return responseWithMessage(
       "Database binding missing. Configure DEEDS_DB.",
+      500,
+    );
+  }
+
+  if (!env.SESSION_SECRET) {
+    return responseWithMessage(
+      "Session secret missing. Configure SESSION_SECRET.",
       500,
     );
   }
@@ -120,8 +257,16 @@ async function handleSignup(request, env) {
       )
       .run();
 
+    const userId = result.meta.last_row_id;
+    const isAdmin = false;
+    const sessionToken = await createSessionToken(
+      userId,
+      isAdmin,
+      env.SESSION_SECRET,
+    );
+
     const profile = {
-      id: result.meta.last_row_id,
+      id: userId,
       name,
       email,
       sector,
@@ -130,6 +275,8 @@ async function handleSignup(request, env) {
       createdAt,
       credits: 0,
       completed: 0,
+      is_admin: isAdmin,
+      sessionToken,
     };
 
     return responseWithMessage(
@@ -150,6 +297,13 @@ async function handleLogin(request, env) {
   if (!env.DEEDS_DB) {
     return responseWithMessage(
       "Database binding missing. Configure DEEDS_DB.",
+      500,
+    );
+  }
+
+  if (!env.SESSION_SECRET) {
+    return responseWithMessage(
+      "Session secret missing. Configure SESSION_SECRET.",
       500,
     );
   }
@@ -180,6 +334,7 @@ async function handleLogin(request, env) {
         u.verification_status,
         u.created_at,
         u.credits,
+        u.is_admin,
         COALESCE(SUM(CASE WHEN d.status = 'verified' THEN 1 ELSE 0 END), 0) AS completed
       FROM users u
       LEFT JOIN deeds d ON d.user_id = u.id
@@ -213,6 +368,13 @@ async function handleLogin(request, env) {
       (user.completed != null ? user.completed : undefined) ?? credits,
     );
 
+    const isAdmin = !!user.is_admin;
+    const sessionToken = await createSessionToken(
+      user.id,
+      isAdmin,
+      env.SESSION_SECRET,
+    );
+
     const profile = {
       id: user.id,
       name: user.name,
@@ -223,6 +385,8 @@ async function handleLogin(request, env) {
       createdAt: user.created_at,
       credits,
       completed,
+      is_admin: isAdmin,
+      sessionToken,
     };
 
     const greetingName = user.name?.split(" ")[0] || user.email;
@@ -339,17 +503,43 @@ async function handleVerifyDeed(request, env) {
     );
   }
 
-  const payload = await parseJsonBody(request);
-  if (!payload) {
-    return responseWithMessage("Invalid JSON payload.", 400);
+  if (!env.SESSION_SECRET) {
+    return responseWithMessage(
+      "Session secret missing. Configure SESSION_SECRET.",
+      500,
+    );
   }
 
-  const deedId = Number(payload.deed_id ?? payload.deedId);
-  if (!Number.isInteger(deedId) || deedId <= 0) {
-    return responseWithMessage("A valid deed_id must be provided.", 400);
+  const authHeader = request.headers.get("authorization") || "";
+  const tokenMatch = authHeader.match(/^Bearer\s+(.+)$/i);
+  const token = tokenMatch ? tokenMatch[1].trim() : "";
+
+  const session = await verifySessionToken(token, env.SESSION_SECRET);
+  if (!session || !session.userId) {
+    return responseWithMessage("Invalid or expired session.", 403);
   }
 
   try {
+    const adminUser = await env.DEEDS_DB.prepare(
+      "SELECT id, is_admin FROM users WHERE id = ?1",
+    )
+      .bind(session.userId)
+      .first();
+
+    if (!adminUser || !adminUser.is_admin) {
+      return responseWithMessage("Administrator access required.", 403);
+    }
+
+    const payload = await parseJsonBody(request);
+    if (!payload) {
+      return responseWithMessage("Invalid JSON payload.", 400);
+    }
+
+    const deedId = Number(payload.deed_id ?? payload.deedId);
+    if (!Number.isInteger(deedId) || deedId <= 0) {
+      return responseWithMessage("A valid deed_id must be provided.", 400);
+    }
+
     const updateResult = await env.DEEDS_DB.prepare(
       "UPDATE deeds SET status = 'verified', credits = 1 WHERE id = ?1",
     )
