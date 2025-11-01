@@ -559,28 +559,40 @@ export default {
       try {
         const results = await env.DEEDS_DB.prepare(
           `
+      WITH verified_counts AS (
+        SELECT user_id, COUNT(*) AS deed_count
+        FROM deeds
+        WHERE status = ?1
+        GROUP BY user_id
+      )
       SELECT
         u.id AS user_id,
         u.name AS name,
-        u.region,
-        COUNT(d.id) AS deed_count,
-        COALESCE(u.credits, COUNT(d.id)) AS credits
+        u.region AS region,
+        u.credits AS stored_credits,
+        COALESCE(vc.deed_count, 0) AS deed_count
       FROM users u
-      LEFT JOIN deeds d
-        ON u.id = d.user_id
-        AND d.status = 'verified'
-      GROUP BY u.id, u.name, u.region
-      ORDER BY credits DESC, deed_count DESC, name ASC
+      LEFT JOIN verified_counts vc
+        ON u.id = vc.user_id
+      ORDER BY COALESCE(u.credits, vc.deed_count) DESC, vc.deed_count DESC, u.name ASC
       LIMIT 10;
     `,
-        ).all();
+        )
+          .bind("verified")
+          .all();
+        const leaderboard = (results.results || []).map((row) => {
+          const deedCount = Number(row.deed_count ?? 0);
+          const credits = Number(
+            row.stored_credits != null ? row.stored_credits : deedCount,
+          );
 
-        const leaderboard = (results.results || []).map((row) => ({
-          name: row.name ?? row.user_name ?? "Neighbor",
-          credits: Number(row.credits ?? row.deed_count ?? 0),
-          deedCount: Number(row.deed_count ?? row.deeds_completed ?? 0),
-          region: row.region ?? null,
-        }));
+          return {
+            name: row.name ?? "Neighbor",
+            credits,
+            deedCount,
+            region: row.region ?? null,
+          };
+        });
 
         const response = Response.json(leaderboard);
         response.headers.set("Access-Control-Allow-Origin", "*");

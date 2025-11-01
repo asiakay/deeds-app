@@ -258,13 +258,9 @@ async function loadLeaderboard() {
 
     entries.forEach((user, index) => {
       const row = document.createElement("tr");
-      const name = user?.name || user?.user_name || "—";
-      const credits = Number(
-        user?.credits ?? user?.deedCount ?? user?.deeds_completed ?? 0,
-      );
-      const deedCount = Number(
-        user?.deedCount ?? user?.deeds_completed ?? user?.deeds ?? 0,
-      );
+      const name = user?.name || "—";
+      const credits = Number(user?.credits ?? 0);
+      const deedCount = Number(user?.deedCount ?? 0);
       const deedLabel = deedCount === 1 ? "deed" : "deeds";
       const deedMeta = deedCount
         ? `<div class="mt-0.5 text-xs text-slate-400">${deedCount} ${deedLabel} verified</div>`
